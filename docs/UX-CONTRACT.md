@@ -1,6 +1,6 @@
 # 공통 UI 동작
 
-사용자 요구사항과 현재 프론트엔드 예시 데이터 계약을 기준으로 한다. 시각 기준은 [DESIGN.md](DESIGN.md), 예시 데이터 범위는 [README.md](README.md) 및 src/data/index.js가 소유한다.
+사용자 요구사항과 현재 프론트엔드 예시 데이터 계약을 기준으로 한다. 시각 기준은 [DESIGN.md](DESIGN.md), 예시 데이터 범위는 [README.md](../README.md) 및 [src/data/index.js](../src/data/index.js)가 소유한다.
 
 ## Canonical UI Map
 

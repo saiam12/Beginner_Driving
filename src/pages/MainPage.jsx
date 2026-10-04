@@ -1,15 +1,15 @@
 import React from 'react';
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import { Navigation,ArrowUpRight,MapPin,Sparkles,RefreshCw,ShieldCheck,Route,CarFront,X,Check } from 'lucide-react';
-import Header from '../components/Header';
-import DistanceControl from '../components/DistanceControl';
-import DrivingIllustration from '../components/DrivingIllustration';
-import MapView from '../components/MapView';
-import Modal from '../components/Modal';
-import ResizableSidebar from '../components/ResizableSidebar';
-import RouteCard from '../components/RouteCard';
-import RegionRanking from '../components/RegionRanking';
-import RouteDetail from '../components/RouteDetail';
+import Header from '../components/layout/Header';
+import DistanceControl from '../components/courses/DistanceControl';
+import DrivingIllustration from '../components/courses/DrivingIllustration';
+import MapView from '../components/map/MapView';
+import Modal from '../components/ui/Modal';
+import ResizableSidebar from '../components/layout/ResizableSidebar';
+import RouteCard from '../components/courses/RouteCard';
+import RegionRanking from '../components/courses/RegionRanking';
+import RouteDetail from '../components/courses/RouteDetail';
 import {regions,rankedRegions,findRegion,getRoutes} from '../data';
 export default function MainPage() {
  const [query,setQuery]=useState(''),[region,setRegion]=useState(null),[batch,setBatch]=useState(0),[selectedId,setSelectedId]=useState(null),[tab,setTab]=useState('routes'),[detail,setDetail]=useState(false),[error,setError]=useState(''),[guide,setGuide]=useState(false);

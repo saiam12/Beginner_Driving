@@ -1,9 +1,9 @@
 import React, {useEffect,useRef,useState} from 'react';
 import {Plus,Minus,LocateFixed,Layers,MapPin,Navigation,Repeat2,ChevronRight} from 'lucide-react';
-import {loadNaverMaps} from '../lib/naverMaps';
+import {loadNaverMaps} from '../../lib/naverMaps';
 import {constrainNaverViewport} from './naverViewportBounds';
 import {createNaverZoomController} from './naverZoomController';
-import {getRankingMarkers} from '../data';
+import {getRankingMarkers} from '../../data';
 import {layoutRegionLabels,regionLabelHTML,REGION_LABEL_SIZE,REGION_LABEL_ANCHOR} from './regionLabelLayout';
 export default function NaverMapView({region,routes,selectedId,onSelect,onDetail,clientId,rankingRegions,onRegionSelect}) {
  const element=useRef(null),map=useRef(null),overlays=useRef([]);

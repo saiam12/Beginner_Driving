@@ -1,136 +1,114 @@
 # 차근차근 — 초보 운전 코스 추천
 
-전국 지역을 대상으로 하는 React + Vite + JavaScript + Leaflet 기반 프론트엔드 프로토타입입니다. 네이버 Maps JavaScript API 연결 코드를 포함합니다. Client ID 설정 전에는 OpenStreetMap으로 실행합니다.
+한국의 초보 운전자가 지역·주행 거리·난이도를 선택하고 연습 코스를 비교하는 React + Vite 프론트엔드 프로토타입입니다.
 
 ## 실행
 
-Node.js 20.19+ 또는 22.12+ 환경에서:
+Node.js 20.19+ 또는 22.12+ 환경에서 실행합니다.
 
 ```powershell
-cd C:\Beginner_Driving
-npm install
+npm ci
+Copy-Item .env.example .env.local
 npm run dev
 ```
 
-터미널에 표시된 주소(기본 http://127.0.0.1:5173)를 엽니다.
+이미 `.env.local`이 있다면 복사 단계를 생략해 기존 설정을 보존합니다. 터미널에 표시된 주소(기본 `http://127.0.0.1:5173/`)로 접속합니다.
 
 ```powershell
 npm run build
 npm run preview
 ```
 
-## 주요 기능
-
-- 검색 전 지역 안내 화면, 추천 코스 / 지역별 순위 탭
-- 전국 17개 시·도의 대표 지역 검색 (서울·부산·인천·대구·광주·대전·울산·세종·경기·강원·충북·충남·전북·전남·경북·경남·제주)
-- 경북대학교/경북대, 범어동, 수성못 등 등록된 별칭 검색
-- 검색 후 해당 지역 지도 이동·확대, 순환형 코스 3개 동시 표시
-- 카드·경로·번호 클릭 시 선택 연동, 굵은 빨간 경로 강조
-- 초록색 출발·도착 마커, waypoint 번호, 진행 방향 화살표
-- 지도 확대/축소, 전체 코스 보기, 기본/차분한 지도 스타일 전환 (같은 OSM 타일에 색상 필터 적용)
-- 거리·시간·난이도·점수와 4가지 분석 지표
-- 주요 구간과 추천 이유를 보여주는 상세 패널
-- 같은 지역·난이도의 템플릿과 대안 경로로 재추천
-- 지원되지 않는 검색어 안내, 지도 타일 오류 안내, 이용 안내
-
-## 파일 구성
-
-- `src/pages/MainPage.jsx`: 검색·탭·선택·상세·재추천 상태와 전체 흐름
-- `src/components/Header.jsx`: 로고와 검색바
-- `src/components/MapView.jsx`: Leaflet 지도 생명주기·타일·이동·지도 컨트롤
-- `src/components/RoutePolyline.js`: 경로·출발 마커·번호·진행 방향
-- `src/components/RouteCard.jsx`: 코스 요약과 선택/상세 진입
-- `src/components/RouteDetail.jsx`: 코스 상세 및 분석
-- `src/components/AnalysisMetric.jsx`: 공통 분석 지표
-- `src/components/RegionRanking.jsx`: 지역별 순위
-- `src/data/regions.json`: 지역 순위·중심좌표·별칭·출발 위치
-- `src/data/routes.json`: 10개 예시 경로 템플릿·점수·지표·상대좌표
-- `src/data/index.js`: 지역 검색 및 템플릿을 실제 좌표 배열로 변환
-- `src/styles.css`: 지도 중심 PC 레이아웃과 좁은 화면 대응
-- `src/main.jsx`, `index.html`, `package.json`: 앱 진입 및 실행 설정
-
-## 실제 데이터 연결
-
-현재 모든 추천 수치·순위·경로는 mock입니다. 경로의 첫 좌표와 마지막 좌표는 동일합니다. 도로망에 맞춘 경로 탐색, 일방통행, 진입 제한, 실제 주행 가능성은 반영하지 않습니다. 내비게이션이나 실제 안전 판정에 사용할 수 없습니다.
-
-1. `findRegion`을 지오코딩/장소 검색 API로 교체해 임의 지역·도로명·장소를 지원합니다.
-2. `getRoutes`를 추천 API로 교체합니다. 반환 형식은 `id`, `rank`, `name`, `score`, `difficulty`, `distance`, `duration`, `startLocation`, `coordinates` ([위도, 경도] 배열), `metrics`, `sections`, `reason`입니다.
-3. 실제 도로망을 이용한 순환 경로 계산과 차로 수·교통사고·교통량·유동인구 데이터 수집 및 AI 추천 모델을 연결합니다.
-4. 지역 순위는 `regions.json` 대신 API로 가져옵니다. 출처·기준 시점·분석 기준도 함께 표시해야 합니다.
-5. 네이버 지도는 `VITE_NAVER_MAP_CLIENT_ID`를 설정하면 `NaverMapView`가 사용됩니다.
-
-지도 타일은 인터넷 연결이 필요합니다. 폰트는 설치된 Noto Sans KR 또는 시스템 폰트로 표시하며 외부 폰트 로딩에 의존하지 않습니다. 타일 서비스 이용 정책을 배포 전에 확인하세요. [Leaflet 공식 문서](https://leafletjs.com/reference), [OpenStreetMap 타일 정책](https://operations.osmfoundation.org/policies/tiles/).
-
-
-## 최초 구현 확인 결과 (전국 대상 확장 전)
-
-- `npm install --cache .npm-cache --fetch-retries=0` 완료, 감사 결과 취약점 0개
-- `npm run build` 성공
-- `npm run dev` 실행, http://127.0.0.1:5173 에서 앱 제공
-- 브라우저에서 초기 화면, 수성구 검색, 서울 마포구 검색, 미지원 지역 안내 확인
-- 코스 카드 선택, 지도 번호 선택, 상세 보기, 지역 순위 및 순위 클릭 이동, 재추천 확인
-- 최종 브라우저 콘솔 error 0건
-- 최종 화면의 지도 타일 24개 로딩, Polyline 3개, 코스 카드 3개 확인
-- 6개 지역 × 6개 경로의 36개 코스에 대해 시작/끝 좌표 동일 확인
-- 최종 화면은 `preview.jpg`에 저장
-
-## 전국 대상 구성
-
-초기 지도는 대한민국 전체를 표시합니다. 추천 지역 예시는 서울·부산·대전·대구로 구성하고, 지역별 순위는 도시명을 포함한 전국 대표 지역을 점수순으로 표시합니다. 현재 21개 예시 지역 데이터가 있으며, 전국 모든 장소의 검색과 추천은 실제 지오코딩/추천 API 연결이 필요합니다. 시·도명으로 검색하면 해당 시·도의 대표 예시 지역으로 이동합니다.
-
-
-## 희망 주행 거리
-
-최소/최대 두 조절점이 있는 슬라이더와 각각의 숫자 입력을 제공합니다. 3~20km 안에서 범위를 선택하고, 최소값은 최대값을 넘지 않게 제한합니다. 추천 코스 3개는 선택 범위 안의 거리로 생성됩니다. 범위와 난이도는 지역 변경 및 재추천 시 유지됩니다.
-
-getRoutes(region, batch, distanceRange, difficulty)의 distanceRange 형식은 {min:5,max:10}입니다. 실제 추천 API에 이 범위를 전달해야 합니다. 현재 거리·시간·좌표는 mock 시뮬레이션입니다.
-
-## 난이도 선택
-
-`src/components/DifficultyControl.jsx`에서 전체 / 쉬움 / 보통 / 어려움을 선택합니다. 거리 설정과 함께 적용되며, 해당 난이도의 경로 3개를 반환합니다. 어려움은 교차로와 방향 전환이 많은 mock 경로, 주의 지표, 빨간 난이도 배지로 표현합니다. 난이도와 점수는 실제 도로 분석 결과가 아닙니다. API 연결 시 `getRoutes(region, batch, distanceRange, difficulty)`의 난이도 조건을 추천 요청에 전달합니다. 재추천은 선택한 난이도 내의 경로 템플릿을 순환합니다.
-
-전국·거리·난이도 확장 확인: 프로덕션 빌드 성공. 21개 지역의 전국 검색 별칭, 4개 난이도 조건, 3/6/10/20km에서 코스 3개와 순환 좌표 및 대안 경로를 확인했습니다. 브라우저에서 부산 해운대구의 어려움 10km → 쉬움 11km 전환과 카드·시간·지도 경로 갱신을 확인했습니다.
-
-
-## 지도 조작
-
-선택 코스 안내는 PC에서 지도 하단 중앙(하단 여백 24px)에 표시합니다. 확대/축소 버튼과 휠은 소수 줌을 지원하는 네이버 GL 지도에서 0.5 단계, 이미지 타일 모드에서 1 단계로 동작합니다. 초기화 시 실제 지원 단위를 확인하며 양방향으로 SDK 줌 애니메이션을 적용합니다. 경로와 마커에도 확대 효과를 적용하고, 줌 변경 때 코스 오버레이를 불필요하게 재생성하지 않습니다. 시스템의 동작 줄이기 설정에서는 줌 애니메이션을 생략합니다. 최소 줌은 7이며, 드래그 범위도 한반도 주변 경계로 제한합니다. 좁은 화면에서는 범례와 겹치지 않도록 안내 카드의 하단 여백을 늘립니다.
-
 ## 네이버 지도 설정
 
-1. 네이버 클라우드 Maps에서 애플리케이션을 등록하고 **Web Dynamic Map**을 선택합니다.
-2. Web 서비스 URL에 개발 주소 http://127.0.0.1:5173 을 등록합니다. localhost로 접속할 경우 http://localhost:5173 도 등록합니다. 실제 배포 시에는 배포 도메인을 추가합니다.
-3. 프로젝트 루트에 .env.local 파일을 만들고 발급받은 Client ID를 입력합니다 (.env.example 참고).
+1. 네이버 클라우드 Maps 애플리케이션에서 Web Dynamic Map을 활성화합니다.
+2. Web 서비스 URL에 개발 주소 `http://127.0.0.1:5173`을 등록합니다. localhost나 배포 도메인으로 접속한다면 해당 주소도 등록합니다.
+3. `.env.local`에 발급한 Maps JavaScript API Client ID를 설정합니다.
 
 ```dotenv
 VITE_NAVER_MAP_CLIENT_ID=발급받은_Client_ID
 ```
 
-4. 개발 서버를 재시작합니다. 네이버 지도에 빨간 경로·초록 출발 마커·번호·방향 화살표가 표시됩니다. 지도 유형 버튼은 일반/위성 지도를 전환합니다.
+4. 개발 서버를 재시작합니다.
 
-Client Secret은 사용하지 않습니다. 이 JavaScript용 Client ID는 브라우저에서 사용하며, 등록 URL로 사용 범위를 제한합니다. .env.local은 Git에서 제외합니다.
+Client ID를 설정하면 네이버 지도를 사용하고, 비어 있으면 Leaflet + OpenStreetMap 지도를 사용합니다. 네이버 인증 실패 시에는 오류와 다시 연결 버튼을 표시합니다.
 
-- src/components/MapView.jsx: 설정에 따라 지도 제공자 선택
-- src/components/LeafletMapView.jsx: 인증 정보 없이 사용하는 임시 지도
-- src/components/NaverMapView.jsx: 실제 네이버 지도 SDK 기반 지도·경로·마커·조작
-- src/lib/naverMaps.js: SDK 로딩·인증 오류·네트워크 오류 처리
+`VITE_`로 시작하는 환경 변수는 브라우저에 공개됩니다. Client ID는 브라우저용 식별자이며, Client Secret·개인 API 키·비밀번호는 이 변수에 넣지 않습니다. 실제 Client ID 값은 저장소에 포함하지 않고 `.env.example`에는 변수명만 유지합니다.
 
-Client ID를 로컬 환경에 설정했습니다. 2026-10-05 재연결에서 인증 및 실제 네이버 지도 표시, 서울 마포구 코스·마커 표시를 확인했습니다. SDK가 지도 요소의 position을 변경하면서 높이가 0이 되는 문제를 width/height 100% 지정으로 수정했습니다. 소수 줌 지원을 위해 GL 서브모듈을 사용합니다 (하드웨어 가속이 없는 브라우저에서는 SDK가 이미지 타일로 대체할 수 있습니다). 지도 검색과 AI 추천은 기존 mock 데이터를 사용합니다.
+## 주요 기능
 
-[네이버 클라우드 Web Dynamic Map 안내](https://guide.ncloud-docs.com/docs/maps-web-sdk) · [네이버 Maps JavaScript API 공식 문서](https://navermaps.github.io/maps.js.ncp/docs/naver.maps.Map.html)
+- 전국 17개 시·도의 대표 예시 지역 21곳과 등록된 장소·별칭 검색
+- 지역별 추천 순위 및 목록·지도 핀 클릭으로 코스 추천
+- 최소·최대 주행 거리 3~20km와 난이도 선택
+- 코스 3개 비교, 선택 경로·출발/도착·방향 표시, 상세 보기 및 재추천
+- 지도 확대·축소 한 번에 0.5단계, 줌 범위 6~17
+- 네이버 중심점 범위: 위도 32.5~39, 경도 124~130.5
+- 네이버 일반/위성 지도 전환, Leaflet 기본/차분한 스타일 전환
+- 데스크톱 사이드바 크기 조절 및 모바일 목록/지도 전환
+- 검색 오류 안내, 검색어 지우기, 이용 안내 모달과 키보드 포커스 관리
 
-## 지역 순위에서 코스 찾기
+## 프로젝트 구조
 
-지역별 순위 탭은 전국 21개 예시 지역의 이름·순위·점수와 코스 추천 버튼을 표시합니다. 지도도 지역 순위 모드로 전환하여 클릭할 수 있는 지역명 마커를 표시합니다. 전국 지도에서는 실제 위치의 간결한 핀으로 상위 지역을 표시하며, 이름표가 겹치면 우선순위가 낮은 지역을 생략합니다. 줌 10 이상에서는 더 많은 지역을 표시하고 전체 예시 지역은 목록에서 확인합니다. 목록 또는 지도 마커 클릭 시 해당 지역으로 이동하고, 선택한 거리 범위와 난이도를 유지한 코스 3개를 추천합니다. Leaflet과 네이버 지도 구현 모두 동일한 동작을 제공합니다.
+```text
+src/
+├── components/
+│   ├── courses/       # 거리·난이도, 추천 코스, 상세, 지역 순위, 안내 그림
+│   ├── layout/        # Header, ResizableSidebar
+│   ├── map/           # 지도 제공자, 경로 표시, 줌·경계·지역 핀 배치
+│   └── ui/            # 공통 Modal
+├── data/              # 예시 지역·경로 데이터와 검색·추천 함수
+├── lib/               # 네이버 SDK 로더
+├── pages/             # MainPage: 화면 상태와 전체 흐름
+├── main.jsx           # 앱 진입점
+└── styles.css         # 공통 디자인 토큰과 화면 스타일
 
-지역 순위 기능 확인: 빌드 성공, 지도에서 세종시 클릭 시 코스 3개 추천 확인, 목록에서 대전 유성구 클릭 시 8~12km·쉬움 설정 유지 확인, 브라우저 콘솔 error 0건. 네이버 지도 연결 및 코스 표시도 2026-10-05 확인했습니다.
+docs/
+├── DESIGN.md          # 시각 기준과 런타임 토큰 소유자
+└── UX-CONTRACT.md     # 공통 UI 동작 기준
 
+.local/                # Git 제외: screenshots/, reports/
+.env.example           # 공유 가능한 환경 변수 양식
+vite.config.js         # 개발·빌드 설정
+package.json
+package-lock.json      # 재현 가능한 의존성 설치를 위해 커밋
+```
 
+지도 제공자 선택은 `src/components/map/MapView.jsx`, 네이버 지도 로딩은 `src/lib/naverMaps.js`가 담당합니다. 제공자별 구현과 지도 보조 함수는 `components/map/`에 함께 둡니다.
 
-## UI 개선 (2026-10-05)
+문서는 `docs/`, 앱에서 사용하는 JSON은 `src/data/`, 로컬 보고서 JSON은 `.local/reports/`에 둡니다. `package.json`과 `package-lock.json`은 npm이 프로젝트 루트에서 사용하는 파일이므로 루트에 유지합니다. 디자인과 UI 동작의 정식 문서는 `docs/DESIGN.md`와 `docs/UX-CONTRACT.md`입니다.
 
-900px 이하에서는 목록/지도 전환 버튼으로 각 패널을 전체 폭으로 사용합니다. 모바일 안내 카드는 범례 위에 배치해 겹침을 피합니다. 지역·탭·상세 화면 변경 시 목록 스크롤을 맨 위로 이동합니다. 검색어 지우기, IME 조합 중 제출 방지, 입력 연결 오류 메시지와 안내 모달의 포커스 관리·Escape 닫기를 제공합니다. 디자인 기준과 동작 소유자는 DESIGN.md 및 UX-CONTRACT.md에 기록합니다.
+## 저장소에 포함하지 않는 파일
 
-## 순위 지도 표시 정리 (2026-10-05)
+| 경로 | 용도 |
+| --- | --- |
+| `.env*` (`.env.example` 제외) | 개발·배포 환경별 실제 설정 |
+| `node_modules/` | 설치된 의존성 |
+| `dist/` | 빌드 산출물 |
+| `.npm-cache/` | 로컬 설치 캐시 |
+| `*.log` | 개발 서버 등 실행 로그 |
+| `.local/screenshots/` | 작업 중 화면 캡처 |
+| `.local/reports/` | 로컬 감사·점검 보고서 |
 
-지도 위 순위는 순위 번호와 지역명만 담은 한 줄 핀으로 표시합니다. 큰 점수 카드와 연결선은 제거하고 핀을 실제 위치에 고정합니다. 화면 안의 상위 지역부터 겹침 없이 표시하며 전국 수준에서 최대 6개(모바일 4개), 줌 10 이상에서 최대 10개(모바일 6개)를 표시합니다. 확대·이동하면 현재 화면에 맞게 다시 선택합니다. 전체 21개 순위와 점수는 목록에서 확인하고 모든 지역을 선택할 수 있습니다.
+위 파일은 `.gitignore`로 제외합니다. 작업 캡처와 보고서는 로컬에서 보존하며, 제품에 사용하는 이미지가 생기면 `src/assets/` 또는 `public/`에 두고 명시적으로 커밋합니다.
+
+이미 커밋된 파일은 ignore 규칙만 추가해도 기록에서 제거되지 않습니다. 이번 구조 정리는 기존 루트 캡처·보고서를 로컬 보관 폴더로 옮겼으며, 다음 커밋에서 루트 파일 삭제가 반영됩니다. 과거 커밋 기록은 별도 이력 정리가 없으면 남습니다.
+
+## 데이터 범위와 실제 서비스 연결
+
+추천 수치·순위·경로는 예시 데이터입니다. 경로는 실제 도로망 탐색, 일방통행, 진입 제한, 실제 주행 가능성을 반영하지 않습니다. 전국 모든 장소 검색에는 지오코딩/장소 검색 API 연결이 필요합니다.
+
+- `src/data/regions.json`: 대표 지역, 중심좌표, 검색 별칭
+- `src/data/routes.json`: 코스 템플릿과 점수·도로 지표
+- `src/data/index.js`: 지역 검색 및 템플릿의 좌표·거리·난이도 변환
+
+실제 연결 시 `findRegion`을 장소 검색 API로, `getRoutes(region, batch, distanceRange, difficulty)`를 추천 API로 교체합니다. 거리 범위 형식은 `{min:5,max:10}`입니다. 지역 변경·재추천 시 거리와 난이도 조건은 유지합니다.
+
+추천 응답에는 `id`, `rank`, `name`, `score`, `difficulty`, `distance`, `duration`, `startLocation`, `coordinates`([위도, 경도]), `metrics`, `sections`, `reason`을 제공합니다.
+
+## 관련 문서
+
+- [디자인 기준](docs/DESIGN.md)
+- [UI 동작 기준](docs/UX-CONTRACT.md)
+- [네이버 Maps JavaScript API](https://navermaps.github.io/maps.js.ncp/docs/naver.maps.Map.html)
+- [Leaflet](https://leafletjs.com/reference)
+- [OpenStreetMap 타일 이용 정책](https://operations.osmfoundation.org/policies/tiles/)

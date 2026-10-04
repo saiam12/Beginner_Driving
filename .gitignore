@@ -2,4 +2,18 @@ node_modules/
 dist/
 *.log
 .npm-cache/
-.env.local
+.env*
+!.env.example
+
+# Local review screenshots and reports
+.local/
+/premium-audit.json
+/ui-review-audit.json
+
+# Screenshots generated during local UI work (root only)
+/map-*.jpg
+/naver-map-*.jpg
+/region-ranking*.jpg
+/sidebar-*.jpg
+/ui-*.jpg
+/preview.jpg

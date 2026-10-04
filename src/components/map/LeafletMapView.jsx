@@ -3,7 +3,7 @@ import { useEffect,useRef,useState } from 'react';
 import L from 'leaflet';
 import { Plus,Minus,LocateFixed,Layers,MapPin,Navigation,Repeat2,ChevronRight } from 'lucide-react';
 import addRoutePolyline from './RoutePolyline';
-import {getRankingMarkers} from '../data';
+import {getRankingMarkers} from '../../data';
 import {layoutRegionLabels,regionLabelHTML,REGION_LABEL_SIZE,REGION_LABEL_ANCHOR} from './regionLabelLayout';
 const KOREA_BOUNDS = L.latLngBounds([32.5,124],[39,130.5]);
 const HOME_CENTER = [37.8,128.2];
