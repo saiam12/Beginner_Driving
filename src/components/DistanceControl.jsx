@@ -1,0 +1,9 @@
+import React from 'react';
+import { Milestone } from 'lucide-react';
+import DifficultyControl from './DifficultyControl';
+export default function DistanceControl({value,onChange,difficulty,onDifficultyChange}) {
+ const updateMin = next => onChange({...value,min:Math.min(value.max,Math.max(3,Number(next)))});
+ const updateMax = next => onChange({...value,max:Math.max(value.min,Math.min(20,Number(next)))});
+ const left=(value.min-3)/17*100,right=(value.max-3)/17*100;
+ return <section className="distance-control" aria-label="코스 거리 설정"><div className="distance-heading"><span className="distance-title"><Milestone size={15}/>희망 주행 거리</span><output><strong>{value.min}–{value.max}</strong> km</output></div><div className="distance-fields"><label>최소 거리<div><input type="number" aria-label="최소 거리 입력" min="3" max={value.max} step="1" value={value.min} onChange={e=>{if(e.target.value)updateMin(e.target.value);}}/> <span>km</span></div></label><span className="distance-separator">~</span><label>최대 거리<div><input type="number" aria-label="최대 거리 입력" min={value.min} max="20" step="1" value={value.max} onChange={e=>{if(e.target.value)updateMax(e.target.value);}}/> <span>km</span></div></label></div><div className="dual-range"><div className="range-track"/><div className="range-fill" style={{left:`${left}%`,width:`${right-left}%`}}/><input type="range" min="3" max="20" step="1" value={value.min} onChange={e=>updateMin(e.target.value)} aria-label="최소 주행 거리" aria-valuetext={`${value.min}킬로미터`} style={{zIndex:value.min===20?4:2}}/><input type="range" min="3" max="20" step="1" value={value.max} onChange={e=>updateMax(e.target.value)} aria-label="최대 주행 거리" aria-valuetext={`${value.max}킬로미터`}/></div><div className="distance-labels"><span>3 km</span><span>20 km</span></div><p>두 조절점을 움직여 원하는 거리 범위를 정하세요.</p><DifficultyControl value={difficulty} onChange={onDifficultyChange}/></section>;
+}
