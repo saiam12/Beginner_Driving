@@ -3,12 +3,14 @@ import {Plus,Minus,LocateFixed,Layers,MapPin,Navigation,Repeat2,ChevronRight} fr
 import {loadNaverMaps} from '../../lib/naverMaps';
 import {constrainNaverViewport} from './naverViewportBounds';
 import {createNaverZoomController} from './naverZoomController';
+import {getNaverCourseViewport} from './naverCourseViewport';
 import {getRankingMarkers} from '../../data';
 import {layoutRegionLabels,regionLabelHTML,REGION_LABEL_SIZE,REGION_LABEL_ANCHOR} from './regionLabelLayout';
 export default function NaverMapView({region,routes,selectedId,onSelect,onDetail,clientId,rankingRegions,onRegionSelect}) {
  const element=useRef(null),map=useRef(null),overlays=useRef([]);
  const fractionalZoom=useRef(false);
  const zoomController=useRef(null);
+ const positioned=useRef(false);
  const [ready,setReady]=useState(false),[tileError,setTileError]=useState(''),[layer,setLayer]=useState('standard');
  const [zoom,setZoom]=useState(7);
  const [minZoom,setMinZoom]=useState(6);
@@ -21,7 +23,7 @@ export default function NaverMapView({region,routes,selectedId,onSelect,onDetail
   window.addEventListener('naver-map-auth-error',authError);
   loadNaverMaps(clientId).then(n=>{
    if(disposed)return;
-   map.current=new n.Map(element.current,{gl:true,center:new n.LatLng(37.8,128.2),zoom:7,minZoom:6,maxZoom:17,maxBounds:new n.LatLngBounds(new n.LatLng(32.5,124),new n.LatLng(39,130.5)),zoomControl:false,mapTypeControl:false,scaleControl:true,scrollWheel:false,overlayZoomEffect:'all',tileTransition:true,tileDuration:400,disableDoubleClickZoom:true,disableDoubleTapZoom:true});
+   map.current=new n.Map(element.current,{center:new n.LatLng(37.8,128.2),zoom:7,minZoom:6,maxZoom:17,maxBounds:new n.LatLngBounds(new n.LatLng(32.5,124),new n.LatLng(39,130.5)),zoomControl:false,mapTypeControl:false,scaleControl:true,scrollWheel:false,overlayZoomEffect:'all',tileTransition:true,tileDuration:400,disableDoubleClickZoom:true,disableDoubleTapZoom:true});
    // Raster maps can briefly echo a fractional value before rounding it.
    // Require a vector canvas before probing native half-step support.
    fractionalZoom.current=false;
@@ -55,16 +57,19 @@ export default function NaverMapView({region,routes,selectedId,onSelect,onDetail
  useEffect(()=>{
   if(!ready)return;
   const n=window.naver.maps;
-  zoomController.current.reset();
-  if(region&&!rankingRegions&&routes.length)map.current.fitBounds(routes.flatMap(r=>r.coordinates.map(([lat,lng])=>new n.LatLng(lat,lng))),{top:65,right:65,bottom:120,left:50,maxZoom:14});
-  else {map.current.setCenter(new n.LatLng(35.75,127.25));map.current.setZoom(map.current.getMinZoom(),false);}
+  const target=region&&!rankingRegions&&routes.length
+   ?getNaverCourseViewport(map.current,element.current,routes.flatMap(r=>r.coordinates),zoomController.current.getZoom())
+   :{center:new n.LatLng(35.75,127.25),zoom:map.current.getMinZoom()};
+  zoomController.current.flyTo(target.center,target.zoom,{animate:positioned.current});
+  positioned.current=true;
  },[ready,region,routes,rankingRegions]);
  useEffect(()=>{
   if(!ready)return;
   const n=window.naver.maps;
   overlays.current.forEach(o=>{n.Event.clearInstanceListeners(o);o.setMap(null);});overlays.current=[];
   const marker=(position,content,size,anchor,onClick)=>{
-   const m=new n.Marker({map:map.current,position:new n.LatLng(...position),icon:{content,size:new n.Size(...size),anchor:new n.Point(...anchor)},zIndex:100});
+   const screenContent=`<div class="naver-screen-marker" style="width:${size[0]}px;height:${size[1]}px;transform-origin:${anchor[0]}px ${anchor[1]}px">${content}</div>`;
+   const m=new n.Marker({map:map.current,position:new n.LatLng(...position),icon:{content:screenContent,size:new n.Size(...size),anchor:new n.Point(...anchor)},zIndex:100});
    if(onClick)n.Event.addListener(m,'click',onClick);
    overlays.current.push(m);
   };
@@ -102,9 +107,10 @@ export default function NaverMapView({region,routes,selectedId,onSelect,onDetail
  const recenter=()=>{
   if(!ready)return;
   const n=window.naver.maps;
-  zoomController.current.reset();
-  if(!rankingRegions&&routes.length)map.current.fitBounds(routes.flatMap(r=>r.coordinates.map(p=>new n.LatLng(...p))),{top:65,right:65,bottom:120,left:50,maxZoom:14});
-  else {map.current.setCenter(new n.LatLng(35.75,127.25));map.current.setZoom(map.current.getMinZoom(),false);}
+  const target=!rankingRegions&&routes.length
+   ?getNaverCourseViewport(map.current,element.current,routes.flatMap(r=>r.coordinates),zoomController.current.getZoom())
+   :{center:new n.LatLng(35.75,127.25),zoom:map.current.getMinZoom()};
+  zoomController.current.flyTo(target.center,target.zoom);
  };
  return <main className={`map-shell naver-map-shell`}><div className="map" ref={element}/>{!ready&&!tileError&&<div className="map-loading" role="status">네이버 지도를 불러오고 있습니다…</div>}<div className="map-location"><MapPin size={15}/>{rankingRegions?'전국 추천 지역':region?region.name:'대한민국'}<span>›</span><strong>{rankingRegions?'지역별 순위 지도':region?'추천 코스 지도':'연습 지역 둘러보기'}</strong></div><div className="map-top-note"><span className="green-dot"/> 천천히, 자신 있게 시작하세요</div><div className="map-controls" data-zoom={zoom}><button aria-label="일반 지도 / 위성 지도 전환" title="일반 지도 / 위성 지도 전환" className={layer==='satellite'?'on':''} onClick={()=>setLayer(l=>l==='standard'?'satellite':'standard')}><Layers size={21}/></button><div><button aria-label="지도 확대" disabled={!ready||zoom>=17} title={zoom>=17?"최대 확대 상태입니다":"지도 확대"} onClick={()=>changeZoom(0.5)}><Plus size={21}/></button><button aria-label="지도 축소" disabled={!ready||zoom<=minZoom} title={zoom<=minZoom?"최소 줌 6 상태입니다":"지도 축소"} onClick={()=>changeZoom(-0.5)}><Minus size={21}/></button></div><button aria-label="전체 코스 보기" title="전체 코스 보기" onClick={recenter}><LocateFixed size={21}/></button></div>{tileError&&<div className="tile-error" role="status">{tileError}<button className="map-retry" onClick={()=>window.location.reload()}>다시 연결</button></div>}{selected?<div className="map-selected"><span className="selected-icon"><Navigation size={22}/></span><div><small>지금 선택한 코스</small><strong>{selected.name}</strong><p>{selected.distance} km <i/> 약 {selected.duration}분 <i/> <span><Repeat2 size={12}/> 출발점으로 돌아오는 코스</span></p></div><button aria-label="선택 코스 상세 보기" onClick={()=>onDetail(selected.id)}><ChevronRight size={23}/></button></div>:!rankingRegions&&<div className="map-welcome"><span className="selected-icon"><Navigation size={22}/></span><div><strong>{rankingRegions?"지역을 누르면 코스를 추천해드려요":"첫 드라이브, 가까운 곳부터"}</strong><p>{rankingRegions?"지도 위 지역명이나 왼쪽 순위를 선택하세요.":"목록에서 지역을 선택하면 연습 코스를 볼 수 있어요."}</p></div></div>}<div className="map-legend"><span><i className={rankingRegions?"legend-region":"legend-line"}/>{rankingRegions?"추천 지역":"추천 코스"}</span><span><i className="legend-dot"/>{rankingRegions?"코스 보기":"출발 · 도착"}</span>{rankingRegions&&<small>확대하면 더 보기</small>}</div></main>;
 }

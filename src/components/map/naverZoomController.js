@@ -1,11 +1,31 @@
 export function createNaverZoomController(map,element,fractional,onChange) {
- let zoom=map.getZoom(),applying=false;
+ let zoom=map.getZoom(),applying=false,flight=null,markerFrame=null;
+ const cancel=()=>{if(flight!==null)cancelAnimationFrame(flight);flight=null;};
+ const cancelMarkerFrame=()=>{if(markerFrame!==null)cancelAnimationFrame(markerFrame);markerFrame=null;};
+ const compensateMarkers=(animate,scale)=>{
+  cancelMarkerFrame();
+  const update=()=>{
+   const displayed=animate?new DOMMatrixReadOnly(getComputedStyle(element).transform).a:scale;
+   element.style.setProperty('--naver-marker-scale',String(1/displayed));
+  };
+  update();
+  if(!animate)return;
+  const started=performance.now();
+  const frame=now=>{
+   update();
+   if(now-started<300)markerFrame=requestAnimationFrame(frame);
+   else {element.style.setProperty('--naver-marker-scale',String(1/scale));markerFrame=null;}
+  };
+  markerFrame=requestAnimationFrame(frame);
+ };
  const reducedMotion=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const render=(animate=false)=>{
   const scale=fractional?1:2**(zoom-Math.floor(zoom));
   // Keep SDK layout stable: half steps change only the compositor transform.
   const extent=fractional?1:2;
   Object.assign(element.style,{position:'absolute',left:'50%',top:'50%',right:'auto',bottom:'auto',width:`${extent*100}%`,height:`${extent*100}%`,transition:animate?'transform 250ms ease-out':'none',transform:`translate(-50%,-50%) scale(${scale})`,transformOrigin:'center'});
+  // Keep HTML pins screen-sized, including every frame of a half-step zoom.
+  compensateMarkers(animate,scale);
   // Keep SDK attribution and scale controls inside the visible, cropped area.
   for(const control of element.children){
    if(control.style.zIndex!=='100'||control.style.bottom==='')continue;
@@ -24,14 +44,12 @@ export function createNaverZoomController(map,element,fractional,onChange) {
   if(!fractional&&nativeZoom===Math.floor(zoom))return;
   zoom=nativeZoom;render();onChange(zoom);
  };
- const reset=()=>{zoom=map.getZoom();render();onChange(zoom);};
- const change=delta=>{
-  const target=Math.max(map.getMinZoom(),Math.min(17,Math.round((zoom+delta)*2)/2));
+ const reset=()=>{cancel();zoom=map.getZoom();render();onChange(zoom);};
+ const applyZoom=(target,smooth=false)=>{
   if(target===zoom)return;
   zoom=target;onChange(zoom);
   applying=true;
   try {
-   const smooth=!reducedMotion();
    const nativeTarget=fractional?target:Math.floor(target);
    if(fractional){
     render();
@@ -51,8 +69,31 @@ export function createNaverZoomController(map,element,fractional,onChange) {
    }
   } finally {applying=false;}
  };
+ const change=delta=>{
+  cancel();
+  applyZoom(Math.max(map.getMinZoom(),Math.min(17,Math.round((zoom+delta)*2)/2)),!reducedMotion());
+ };
+ const flyTo=(center,target,{animate=true}={})=>{
+  cancel();
+  const n=window.naver.maps,start=map.getCenter(),startZoom=zoom;
+  target=Math.max(map.getMinZoom(),Math.min(17,target));
+  if(!animate||reducedMotion()){
+   map.setCenter(center);applyZoom(target);return;
+  }
+  const started=performance.now();
+  const frame=now=>{
+   const progress=Math.min(1,(now-started)/1100);
+   const eased=progress<0.5?4*progress**3:1-(-2*progress+2)**3/2;
+   // Drive one live map: integer tile levels plus continuous raster scale.
+   map.setCenter(new n.LatLng(start.lat()+(center.lat()-start.lat())*eased,start.lng()+(center.lng()-start.lng())*eased));
+   applyZoom(startZoom+(target-startZoom)*eased);
+   flight=progress<1?requestAnimationFrame(frame):null;
+  };
+  flight=requestAnimationFrame(frame);
+ };
+ element.addEventListener('pointerdown',cancel);
  render();
  map.autoResize();
- const destroy=()=>{element.style.transition='none';};
- return {change,sync,reset,destroy,getZoom:()=>zoom};
+ const destroy=()=>{cancel();cancelMarkerFrame();element.removeEventListener('pointerdown',cancel);element.style.transition='none';};
+ return {change,sync,reset,flyTo,destroy,getZoom:()=>zoom};
 }

@@ -46,6 +46,7 @@
 
 /* 순위 지도: 실제 위치의 간결한 핀. 상세 수치는 순위 목록에서 확인합니다. */
 .region-map-label{position:relative;width:126px;height:36px;min-height:36px;display:flex;align-items:center;justify-content:flex-start;gap:6px;padding:5px 8px;border-radius:18px;background:var(--color-surface);border:1px solid #b9cef4;box-shadow:0 2px 6px #30496816;white-space:nowrap}
+.naver-screen-marker{transform:scale(var(--naver-marker-scale,1))}
 .region-map-label::after{content:'';position:absolute;width:8px;height:8px;left:calc(50% - 4px);bottom:-5px;background:var(--color-surface);border-right:1px solid #b9cef4;border-bottom:1px solid #b9cef4;transform:rotate(45deg)}
 .region-map-label>b{width:23px;height:23px;border-radius:50%;background:#edf4ff;color:var(--color-primary);font-size:11px;font-weight:700}
 .region-map-label>span{font-size:12px;font-weight:600;color:var(--color-text)}
