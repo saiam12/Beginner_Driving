@@ -113,11 +113,30 @@
 .lane-filter-buttons button[aria-pressed="true"]{background:var(--color-primary);color:var(--color-surface);box-shadow:0 1px 3px #24324715}
 .lane-filter-clear{min-height:40px;padding:0 4px;font-size:12px;color:var(--color-primary);white-space:nowrap}
 .lane-filter-clear:disabled{color:var(--color-muted);opacity:.45;cursor:default}
-.lane-road-status{position:absolute;z-index:1000;left:24px;top:78px;display:flex;align-items:flex-start;gap:8px;max-width:calc(100% - 108px);padding:10px 13px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:9px;font-size:12px;color:var(--color-text);box-shadow:0 2px 8px #24324712}
+.driver-preferences{padding:18px 24px;border-bottom:1px solid var(--color-border)}
+.driver-preferences h3{font-size:16px;margin:0 0 12px;color:var(--color-text)}
+.driver-preferences fieldset{border:0;padding:0;margin:0 0 12px;min-width:0}
+.driver-preferences legend{font-size:12px;color:var(--color-muted);margin-bottom:6px}
+.driver-preferences legend small{margin-left:6px;font-size:11px}
+.driver-choice{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:6px}
+.driver-choice button{flex:1;min-height:40px;padding:5px;border:1px solid var(--color-border);border-radius:7px;font-size:12px;color:var(--color-muted);white-space:nowrap}
+.driver-choice button[aria-pressed="true"]{color:var(--color-primary);border-color:var(--color-primary);background:#eff4ff}
+.driver-preferences p{margin:0;color:var(--color-muted);font-size:12px;line-height:1.6}
+.ai-course-actions{margin-top:10px}
+.ai-course-actions button{width:150px;min-height:40px;border:1px solid var(--color-primary);border-radius:7px;font-weight:600}
+.ai-course-actions button:disabled{opacity:.5;cursor:default}
+.ai-course-feedback{min-height:32px;margin-top:6px;max-width:360px}
+.ai-course-feedback p{margin:4px 0}
+.ai-recommended{display:inline-block;margin-left:5px;font-size:11px;color:var(--color-primary)}
+.lane-road-status{position:absolute;z-index:1000;left:24px;top:78px;display:flex;align-items:flex-start;gap:8px;max-width:calc(100% - 108px);max-height:calc(100% - 168px);overflow:auto;padding:10px 13px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:9px;font-size:12px;color:var(--color-text);box-shadow:0 2px 8px #24324712}
 .lane-road-status small{display:block;margin-top:4px;color:var(--color-muted);font-size:11px}
+.lane-road-content{min-width:0;flex:1}
+.lane-road-status .lane-road-toggle{min-height:32px;width:32px;flex-shrink:0;border:1px solid var(--color-border);border-radius:6px;background:var(--color-surface);font-size:22px;line-height:1}
+.lane-road-status[data-collapsed="true"]{align-items:center;gap:8px}
 .connected-course-control{margin-top:10px;padding-top:8px;border-top:1px solid var(--color-border);max-width:460px}
 .connected-course-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.connected-course-mode{display:flex;gap:4px}
+.connected-course-mode{display:flex;gap:4px;flex-wrap:wrap}
+.connected-course-mode button{padding:0 8px;border:1px solid var(--color-border);border-radius:6px}
 .connected-course-mode button[aria-pressed="true"]{background:#eff4ff;border-color:var(--color-primary)}
 .connected-course-actions button{padding:0 10px;border:1px solid var(--color-border);border-radius:6px}
 .connected-course-actions button:disabled{opacity:.5;cursor:default}
@@ -134,3 +153,22 @@
 @media(min-width:901px) and (max-width:1500px){.header-right{display:none}.header .brand{min-width:190px}}
 @media(max-width:900px){.header{height:auto;min-height:120px}.header .lane-filter{order:4;flex:0 0 100%;margin:2px 0 0;gap:8px}.lane-filter-label{display:none}.lane-filter-buttons{flex:1;justify-content:space-between}.lane-filter-buttons button{flex:1;height:40px;min-width:0}.lane-filter-clear{min-width:36px}.lane-road-status{left:16px;top:72px;max-width:calc(100% - 88px)}}
 @media(max-width:900px){.mobile-map .mobile-road-status{display:block;position:absolute;left:16px;right:16px;top:72px;padding:14px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:9px;z-index:1002;font-size:12px}.mobile-road-status button{display:block;color:var(--color-primary);min-height:44px}}
+
+.course-cost-debug{margin-top:10px;border-top:1px solid var(--color-border);padding-top:8px}
+.course-cost-debug summary{cursor:pointer;font-size:12px;font-weight:600;min-height:32px}
+.course-cost-list{display:grid;gap:6px;max-height:220px;overflow:auto;margin:6px 0}
+.course-cost-list button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:8px;border:1px solid var(--color-border);border-radius:6px;min-width:0;overflow-wrap:anywhere;white-space:normal;font-size:12px}
+.course-cost-list button[aria-pressed="true"]{border-color:#dc2626;background:#fef2f2}
+.course-cost-list span{font-variant-numeric:tabular-nums}
+
+.course-start-control{margin-bottom:8px}.course-start-control strong{display:block;margin-bottom:5px}
+.course-start-pin{width:20px;height:20px;border:3px solid var(--color-primary);background:white;border-radius:50%;box-sizing:border-box}
+.course-annotation{background:none;border:0;pointer-events:none!important}
+.course-number{display:inline-block;white-space:nowrap;padding:4px 9px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#991b1b;font-size:12px;font-weight:700;box-shadow:0 2px 6px #0002;pointer-events:auto;cursor:pointer}
+.course-number:hover{border-color:#dc2626;box-shadow:0 2px 8px #991b1b40}
+.course-number:disabled{pointer-events:none;cursor:default}
+.course-number[data-active="true"]{background:#dc2626;border-color:#fff;color:#fff}
+.course-stop{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.course-stop-dot{width:20px;height:20px;flex-shrink:0;border:3px solid #fff;border-radius:50%;background:#15803d;box-shadow:0 0 0 2px #15803d,0 2px 5px #0003}
+.course-stop-label{padding:5px 9px;border:1px solid #15803d;border-radius:6px;background:#f0fdf4;color:#166534;font-size:13px;font-weight:800;box-shadow:0 2px 6px #0002}
+.course-direction{display:block;width:22px;height:22px}

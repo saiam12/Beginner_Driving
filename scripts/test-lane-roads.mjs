@@ -92,6 +92,10 @@ assert.equal(api.filterLaneFeatures([feature,feature], [126.5,37.5,127.5,38.5], 
 assert.equal(api.filterLaneFeatures([feature], [128,37,129,38], [2]).length,0);
 const bounds = [126.885,37.497,126.894,37.508];
 const result = await api.loadLaneRoads(bounds, [2]);
+const allLanes=await api.loadLaneRoads(bounds);
+assert(!allLanes.tooWide&&allLanes.features.length>=result.features.length);
+assert(allLanes.features.some(f=>f.properties.lanes!==2),'Routing without selection includes other lane categories');
+assert.equal(api.filterLaneFeatures([feature], [126.5,37.5,127.5,38.5], null).length,1);
 assert(!result.tooWide);
 assert(result.features.length > 0);
 assert(result.features.every(f => f.properties.lanes === 2));

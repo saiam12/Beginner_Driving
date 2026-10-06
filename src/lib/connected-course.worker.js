@@ -1,5 +1,9 @@
-import {connectCourses} from './connected-course.js';
+import {exploreCourseCandidates} from './connected-course.js';
+import {classifyCourseCandidates} from './course-overlap.js';
 self.onmessage=({data})=>{
- try{self.postMessage({courses:connectCourses(data.features,data.center,data.range,data.mode)});}
+ try{
+  const courses=exploreCourseCandidates(data.features,data.center,data.range,data.mode,data.options);
+  self.postMessage({courses,courseSelection:classifyCourseCandidates(courses)});
+ }
  catch(error){self.postMessage({error:error.message});}
 };

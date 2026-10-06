@@ -71,7 +71,7 @@ export function createNaverZoomController(map,element,fractional,onChange) {
  };
  const change=delta=>{
   cancel();
-  applyZoom(Math.max(map.getMinZoom(),Math.min(17,Math.round((zoom+delta)*2)/2)),!reducedMotion());
+  applyZoom(Math.max(map.getMinZoom(),Math.min(17,Math.round(zoom)+delta)),!reducedMotion());
  };
  const flyTo=(center,target,{animate=true}={})=>{
   cancel();

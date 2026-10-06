@@ -26,7 +26,7 @@ export function filterLaneFeatures(features, bounds, selected) {
  const unique = new Map();
  for (const feature of features) {
   const p = feature.properties, b = p.bounds;
-  if (laneMatches(p.lanes, selected) && b[0] <= bounds[2] && b[2] >= bounds[0] && b[1] <= bounds[3] && b[3] >= bounds[1]) unique.set(p.linkId, feature);
+  if ((selected == null || laneMatches(p.lanes, selected)) && b[0] <= bounds[2] && b[2] >= bounds[0] && b[1] <= bounds[3] && b[3] >= bounds[1]) unique.set(p.linkId, feature);
  }
  return [...unique.values()];
 }
@@ -39,12 +39,12 @@ export function centerFirst(features, bounds) {
  };
  return features.map(feature=>({feature,distance:distance(feature)})).sort((a,b)=>a.distance-b.distance).map(item=>item.feature);
 }
-export async function loadLaneRoads(bounds, selected, {signal} = {}) {
+export async function loadLaneRoads(bounds, selected = null, {signal} = {}) {
  const keys = viewportTiles(bounds);
  if (!keys) return {features: [], tooWide: true};
  if (!manifest) manifest = await readRoadJSON('lanes/manifest.json', signal);
  signal?.throwIfAborted();
- const pending = keys.filter(key => selected.some(lane => manifest.tiles[key]?.[String(lane)]));
+ const pending = keys.filter(key => selected == null ? !!manifest.tiles[key] : selected.some(lane => manifest.tiles[key]?.[String(lane)]));
  let offset = 0;
  const results = [];
  await Promise.all(Array.from({length: Math.min(6, pending.length)}, async () => {
