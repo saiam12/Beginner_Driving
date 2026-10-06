@@ -78,3 +78,59 @@
 .resizable-sidebar .tabs button{white-space:nowrap}
 .resizable-sidebar .how-it-works{margin-top:24px;padding-top:20px}
 .naver-map-shell{overflow:hidden}
+/* Road search extends the existing header and uses the established tokens. */
+.search-container{position:relative;width:540px;min-width:0;flex-shrink:1}
+.search-container .search{width:100%}
+.search-results{position:absolute;top:calc(100% + 8px);left:0;right:0;max-height:min(480px,65dvh);overflow:auto;scrollbar-gutter:stable;background:var(--color-surface);border:1px solid var(--color-border);border-radius:9px;box-shadow:0 8px 26px #24324720;z-index:1200}
+.search-status{padding:13px 16px;font-size:12px;color:var(--color-muted)}
+.search-result{display:flex;width:100%;gap:12px;align-items:flex-start;padding:13px 16px;text-align:left;border-top:1px solid var(--color-border);min-height:66px}
+.search-result>svg{margin-top:3px;color:var(--color-primary)}
+.search-result>span{min-width:0}
+.search-result strong,.search-result small{display:block;overflow-wrap:anywhere}
+.search-result strong{font-size:14px;color:var(--color-text)}
+.search-result small{font-size:12px;color:var(--color-muted);margin-top:4px;line-height:1.5}
+.search-result:hover,.search-result:focus-visible{background:#eff5ff}
+.search-more{display:block;width:100%;min-height:44px;border-top:1px solid var(--color-border);color:var(--color-primary);font-size:12px}
+.search-more:disabled{cursor:wait;opacity:.6}
+.road-info>p{line-height:1.8;margin-top:12px}
+.road-info .road-length{font-size:16px;font-weight:600;color:var(--color-text)}
+.road-info summary{cursor:pointer;font-size:13px;color:var(--color-primary);padding:12px 0}
+.road-links{max-height:300px;overflow:auto;border:1px solid var(--color-border);border-radius:7px}
+.road-links>div{padding:12px;border-bottom:1px solid var(--color-border)}
+.road-links small{display:block;font-size:12px;color:var(--color-muted);margin-top:6px;overflow-wrap:anywhere}
+.road-map-info{max-width:min(560px,calc(100% - 48px));pointer-events:none}
+.road-map-info>div{min-width:0}
+.road-map-info p{white-space:normal;overflow-wrap:anywhere}
+.road-link-tooltip{white-space:pre-line;padding:10px 12px;font-size:12px;line-height:1.7;color:var(--color-text);background:var(--color-surface);max-width:300px}
+@media(max-width:900px){.header .search-container{width:100%;flex:0 0 100%;order:3;min-width:0}.road-map-info{bottom:84px}.search-results{max-height:55dvh}}
+.workspace{position:relative}
+.mobile-road-status{display:none}
+.header .lane-filter{margin-left:auto}
+.lane-filter{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.lane-filter-label{font-size:12px;font-weight:600;color:var(--color-muted);white-space:nowrap}
+.lane-filter-buttons{display:flex;gap:3px;padding:3px;border:1px solid var(--color-border);border-radius:9px;background:#f7f9fc}
+.lane-filter-buttons button{height:36px;min-width:34px;padding:0 7px;border-radius:6px;font-size:13px;font-weight:600;color:var(--color-muted)}
+.lane-filter-buttons button[aria-pressed="true"]{background:var(--color-primary);color:var(--color-surface);box-shadow:0 1px 3px #24324715}
+.lane-filter-clear{min-height:40px;padding:0 4px;font-size:12px;color:var(--color-primary);white-space:nowrap}
+.lane-filter-clear:disabled{color:var(--color-muted);opacity:.45;cursor:default}
+.lane-road-status{position:absolute;z-index:1000;left:24px;top:78px;display:flex;align-items:flex-start;gap:8px;max-width:calc(100% - 108px);padding:10px 13px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:9px;font-size:12px;color:var(--color-text);box-shadow:0 2px 8px #24324712}
+.lane-road-status small{display:block;margin-top:4px;color:var(--color-muted);font-size:11px}
+.connected-course-control{margin-top:10px;padding-top:8px;border-top:1px solid var(--color-border);max-width:460px}
+.connected-course-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.connected-course-mode{display:flex;gap:4px}
+.connected-course-mode button[aria-pressed="true"]{background:#eff4ff;border-color:var(--color-primary)}
+.connected-course-actions button{padding:0 10px;border:1px solid var(--color-border);border-radius:6px}
+.connected-course-actions button:disabled{opacity:.5;cursor:default}
+.connected-course-result{color:#dc2626;margin:6px 0 0}
+.connected-course-options{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.connected-course-options button{min-height:40px;padding:0 8px;border:1px solid var(--color-border);border-radius:6px}
+.connected-course-options button[aria-pressed="true"]{background:#fef2f2;border-color:#dc2626;color:#dc2626}
+@media(max-width:900px){.connected-course-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.connected-course-options button{min-width:0;white-space:normal;line-height:1.4;padding:4px 6px}}
+.connected-course-result button{margin-left:8px}
+.connected-course-control p{max-width:440px;line-height:1.6}
+.lane-road-swatch{margin-top:6px;width:18px;height:3px;flex-shrink:0;background:var(--color-primary);border-radius:2px}
+.lane-road-status button{min-height:40px;color:var(--color-primary);white-space:nowrap}
+@media(min-width:901px){.header{gap:16px}.header .search-container{flex:1;min-width:220px;max-width:540px}.header .search{width:100%}.header .brand{min-width:240px}.header-right{margin-left:0}.guide-trigger{white-space:nowrap}}
+@media(min-width:901px) and (max-width:1500px){.header-right{display:none}.header .brand{min-width:190px}}
+@media(max-width:900px){.header{height:auto;min-height:120px}.header .lane-filter{order:4;flex:0 0 100%;margin:2px 0 0;gap:8px}.lane-filter-label{display:none}.lane-filter-buttons{flex:1;justify-content:space-between}.lane-filter-buttons button{flex:1;height:40px;min-width:0}.lane-filter-clear{min-width:36px}.lane-road-status{left:16px;top:72px;max-width:calc(100% - 88px)}}
+@media(max-width:900px){.mobile-map .mobile-road-status{display:block;position:absolute;left:16px;right:16px;top:72px;padding:14px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:9px;z-index:1002;font-size:12px}.mobile-road-status button{display:block;color:var(--color-primary);min-height:44px}}

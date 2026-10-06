@@ -1,1 +1,23 @@
-{"name":"beginner-driving","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"vite --host 127.0.0.1","build":"vite build","preview":"vite preview --host 127.0.0.1"},"dependencies":{"react":"^19.1.1","react-dom":"^19.1.1","leaflet":"^1.9.4","lucide-react":"^0.468.0"},"devDependencies":{"vite":"^7.1.7"}}
+{
+  "name": "beginner-driving",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:roads": "python scripts/test-preprocess-road-links.py && python scripts/verify-road-data.py && node scripts/test-road-search.mjs",
+    "test:lanes": "node scripts/test-lane-roads.mjs",
+    "test:connected": "node scripts/test-connected-course.mjs"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.7"
+  }
+}

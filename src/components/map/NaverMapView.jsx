@@ -5,25 +5,39 @@ import {constrainNaverViewport} from './naverViewportBounds';
 import {createNaverZoomController} from './naverZoomController';
 import {getNaverCourseViewport} from './naverCourseViewport';
 import {getRankingMarkers} from '../../data';
+import {linkTooltip} from '../../lib/road-search';
+import {RoadMapInfo} from './RoadInfo';
+import useLaneRoads from './useLaneRoads';
+import LaneRoadStatus from './LaneRoadStatus';
+import ConnectedCourseControl from './ConnectedCourseControl';
+import {CONNECTED_COURSE_COLOR} from '../../lib/connected-course';
+import {LANE_COLOR,laneTooltip} from '../../lib/lane-roads';
+import {renderLaneBatches} from './laneRenderBatch';
+import {createIncrementalLaneLayer} from './incrementalLaneLayer';
 import {layoutRegionLabels,regionLabelHTML,REGION_LABEL_SIZE,REGION_LABEL_ANCHOR} from './regionLabelLayout';
-export default function NaverMapView({region,routes,selectedId,onSelect,onDetail,clientId,rankingRegions,onRegionSelect}) {
+export default function NaverMapView({region,routes,selectedId,onSelect,onDetail,clientId,rankingRegions,onRegionSelect,selectedRoad,selectedArea,laneSelection,distanceRange}) {
  const element=useRef(null),map=useRef(null),overlays=useRef([]);
  const fractionalZoom=useRef(false);
  const zoomController=useRef(null);
- const positioned=useRef(false);
+ const positioned=useRef(false),roadTooltip=useRef(null);
+ const laneLayer=useRef(null);
  const [ready,setReady]=useState(false),[tileError,setTileError]=useState(''),[layer,setLayer]=useState('standard');
  const [zoom,setZoom]=useState(7);
- const [minZoom,setMinZoom]=useState(6);
+ const [minZoom,setMinZoom]=useState(7);
  const [viewRevision,setViewRevision]=useState(0);
+ const [laneViewport,setLaneViewport]=useState(null);
+ const [laneRendering,setLaneRendering]=useState(false);
+ const [connectedCourse,setConnectedCourse]=useState(null);
+ const laneRoads=useLaneRoads(laneViewport,laneSelection);
  const rankingZoom=rankingRegions?zoom:null,rankingRevision=rankingRegions?viewRevision:null;
- const selected=rankingRegions?null:routes.find(r=>r.id===selectedId);
+ const selected=rankingRegions||selectedRoad||selectedArea?null:routes.find(r=>r.id===selectedId);
  useEffect(()=>{
   let disposed=false,observer,wheel;
   const authError=()=>{setReady(false);setTileError('네이버 지도 인증에 실패했습니다. Client ID와 등록 URL을 확인해주세요.');};
   window.addEventListener('naver-map-auth-error',authError);
   loadNaverMaps(clientId).then(n=>{
    if(disposed)return;
-   map.current=new n.Map(element.current,{center:new n.LatLng(37.8,128.2),zoom:7,minZoom:6,maxZoom:17,maxBounds:new n.LatLngBounds(new n.LatLng(32.5,124),new n.LatLng(39,130.5)),zoomControl:false,mapTypeControl:false,scaleControl:true,scrollWheel:false,overlayZoomEffect:'all',tileTransition:true,tileDuration:400,disableDoubleClickZoom:true,disableDoubleTapZoom:true});
+   map.current=new n.Map(element.current,{center:new n.LatLng(37.8,128.2),zoom:7,minZoom:7,maxZoom:17,maxBounds:new n.LatLngBounds(new n.LatLng(32.5,124),new n.LatLng(39,130.5)),zoomControl:false,mapTypeControl:false,scaleControl:true,scrollWheel:false,overlayZoomEffect:'all',tileTransition:true,tileDuration:400,disableDoubleClickZoom:true,disableDoubleTapZoom:true});
    // Raster maps can briefly echo a fractional value before rounding it.
    // Require a vector canvas before probing native half-step support.
    fractionalZoom.current=false;
@@ -47,7 +61,7 @@ export default function NaverMapView({region,routes,selectedId,onSelect,onDetail
    setZoom(map.current.getZoom());
    setReady(true);
   }).catch(error=>{if(!disposed)setTileError(error.message);});
-  return ()=>{disposed=true;window.removeEventListener('naver-map-auth-error',authError);observer?.disconnect();element.current?.removeEventListener('wheel',wheel);overlays.current.forEach(o=>o.setMap(null));overlays.current=[];zoomController.current?.destroy();map.current?.destroy();map.current=null;};
+  return ()=>{disposed=true;window.removeEventListener('naver-map-auth-error',authError);observer?.disconnect();element.current?.removeEventListener('wheel',wheel);laneLayer.current?.destroy();overlays.current.forEach(o=>o.setMap(null));overlays.current=[];roadTooltip.current?.close();zoomController.current?.destroy();map.current?.destroy();map.current=null;};
  },[clientId]);
  useEffect(()=>{
   if(!ready)return;
@@ -56,16 +70,62 @@ export default function NaverMapView({region,routes,selectedId,onSelect,onDetail
  },[ready,layer]);
  useEffect(()=>{
   if(!ready)return;
+  const n=window.naver.maps,m=map.current,projection=m.getProjection(),size=m.getSize();
+  const scale=fractionalZoom.current?1:2**(zoomController.current.getZoom()-m.getZoom());
+  const width=element.current.parentElement.clientWidth/scale,height=element.current.parentElement.clientHeight/scale;
+  const sw=projection.fromOffsetToCoord(new n.Point((size.width-width)/2,(size.height+height)/2));
+  const ne=projection.fromOffsetToCoord(new n.Point((size.width+width)/2,(size.height-height)/2));
+  setLaneViewport({zoom:zoomController.current.getZoom(),bounds:[sw.lng(),sw.lat(),ne.lng(),ne.lat()]});
+ },[ready,viewRevision,zoom]);
+ useEffect(()=>{
+  if(!ready)return;
+  const n=window.naver.maps,m=map.current;
+  const tooltip=new n.InfoWindow({content:document.createElement('div'),disableAnchor:true});
+  const layer=createIncrementalLaneLayer(feature=>{
+   const lines=[];
+   const parts=feature.geometry.type==='MultiLineString'?feature.geometry.coordinates:[feature.geometry.coordinates];
+   parts.forEach(coords=>{
+    const line=new n.Polyline({map:m,path:coords.map(([lng,lat])=>new n.LatLng(lat,lng)),strokeColor:LANE_COLOR,strokeWeight:4,strokeOpacity:0.8,clickable:true,zIndex:5});
+    const show=()=>{const content=document.createElement('div');content.className='road-link-tooltip';content.textContent=laneTooltip(feature.properties);tooltip.setContent(content);tooltip.open(m,new n.LatLng(feature.properties.centerLat,feature.properties.centerLng));};
+    n.Event.addListener(line,'click',show);n.Event.addListener(line,'mouseover',show);n.Event.addListener(line,'mouseout',()=>tooltip.close());lines.push(line);
+   });
+   return lines;
+  },groups=>{
+   const lines=groups.flat();
+   tooltip.close();
+   // Hide stale roads immediately; SDK removal can take longer than creation.
+   lines.forEach(line=>line.setVisible(false));
+   renderLaneBatches(lines,line=>{n.Event.clearInstanceListeners(line);line.setMap(null);},undefined,true);
+  },setLaneRendering);
+  laneLayer.current=layer;
+  return()=>{layer.destroy();tooltip.close();if(laneLayer.current===layer)laneLayer.current=null;};
+ },[ready]);
+ useEffect(()=>{laneLayer.current?.update(laneRoads.features);},[ready,laneRoads.features]);
+ useEffect(()=>{
+  if(!ready||!connectedCourse)return;
+  const n=window.naver.maps,m=map.current,lines=[];
+  const cancel=renderLaneBatches(connectedCourse.featureCollection.features,feature=>{
+   lines.push(new n.Polyline({map:m,path:feature.geometry.coordinates.map(([lng,lat])=>new n.LatLng(lat,lng)),strokeColor:CONNECTED_COURSE_COLOR,strokeWeight:7,strokeOpacity:1,zIndex:40}));
+  },undefined,true,1);
+  const markers=[['출발',connectedCourse.start],...(connectedCourse.mode==='loop'?[]:[['도착',connectedCourse.end]])].map(([title,[lng,lat]])=>new n.Marker({map:m,position:new n.LatLng(lat,lng),title,zIndex:150}));
+  return()=>{cancel();lines.forEach(line=>line.setMap(null));markers.forEach(marker=>marker.setMap(null));};
+ },[ready,connectedCourse]);
+ useEffect(()=>{
+  if(!ready)return;
   const n=window.naver.maps;
-  const target=region&&!rankingRegions&&routes.length
+  const roadBounds=(selectedRoad??selectedArea)?.bounds;
+  const target=roadBounds&&!rankingRegions
+   ?getNaverCourseViewport(map.current,element.current,[[roadBounds[1],roadBounds[0]],[roadBounds[3],roadBounds[2]]],zoomController.current.getZoom(),17)
+   :region&&!rankingRegions&&routes.length
    ?getNaverCourseViewport(map.current,element.current,routes.flatMap(r=>r.coordinates),zoomController.current.getZoom())
    :{center:new n.LatLng(35.75,127.25),zoom:map.current.getMinZoom()};
   zoomController.current.flyTo(target.center,target.zoom,{animate:positioned.current});
   positioned.current=true;
- },[ready,region,routes,rankingRegions]);
+ },[ready,region,routes,rankingRegions,selectedRoad,selectedArea]);
  useEffect(()=>{
   if(!ready)return;
   const n=window.naver.maps;
+  roadTooltip.current?.close();
   overlays.current.forEach(o=>{n.Event.clearInstanceListeners(o);o.setMap(null);});overlays.current=[];
   const marker=(position,content,size,anchor,onClick)=>{
    const screenContent=`<div class="naver-screen-marker" style="width:${size[0]}px;height:${size[1]}px;transform-origin:${anchor[0]}px ${anchor[1]}px">${content}</div>`;
@@ -73,6 +133,19 @@ export default function NaverMapView({region,routes,selectedId,onSelect,onDetail
    if(onClick)n.Event.addListener(m,'click',onClick);
    overlays.current.push(m);
   };
+  if(selectedRoad&&!rankingRegions){
+   const tooltip=new n.InfoWindow({content:document.createElement('div'),disableAnchor:true});roadTooltip.current=tooltip;
+   selectedRoad.featureCollection.features.forEach(feature=>{
+    const lines=feature.geometry.type==='MultiLineString'?feature.geometry.coordinates:[feature.geometry.coordinates];
+    lines.forEach(coords=>{
+     const line=new n.Polyline({map:map.current,path:coords.map(([lng,lat])=>new n.LatLng(lat,lng)),strokeColor:'#ea4949',strokeWeight:6,strokeOpacity:1,clickable:true,zIndex:30});
+     const show=()=>{const content=document.createElement('div');content.className='road-link-tooltip';content.textContent=linkTooltip(feature.properties);tooltip.setContent(content);tooltip.open(map.current,new n.LatLng(feature.properties.centerLat,feature.properties.centerLng));};
+     n.Event.addListener(line,'click',show);n.Event.addListener(line,'mouseover',show);n.Event.addListener(line,'mouseout',()=>tooltip.close());overlays.current.push(line);
+    });
+   });
+   return;
+  }
+  if(selectedArea&&!rankingRegions)return;
   if(rankingRegions){
    const projection=map.current.getProjection(),size=map.current.getSize();
    const viewport=element.current.parentElement;
@@ -102,17 +175,20 @@ export default function NaverMapView({region,routes,selectedId,onSelect,onDetail
     marker([(p[0]+next[0])/2,(p[1]+next[1])/2],`<span class="direction" style="transform:rotate(${angle}deg)">➤</span>`,[16,16],[8,8]);
    });
   });
- },[ready,routes,selectedId,onSelect,rankingRegions,onRegionSelect,rankingZoom,rankingRevision]);
+ },[ready,routes,selectedId,onSelect,rankingRegions,onRegionSelect,rankingZoom,rankingRevision,selectedRoad,selectedArea]);
  const changeZoom=delta=>{if(ready)zoomController.current.change(delta);};
  const recenter=()=>{
   if(!ready)return;
   const n=window.naver.maps;
-  const target=!rankingRegions&&routes.length
+  const roadBounds=(selectedRoad??selectedArea)?.bounds;
+  const target=roadBounds&&!rankingRegions
+   ?getNaverCourseViewport(map.current,element.current,[[roadBounds[1],roadBounds[0]],[roadBounds[3],roadBounds[2]]],zoomController.current.getZoom(),17)
+   :!rankingRegions&&routes.length
    ?getNaverCourseViewport(map.current,element.current,routes.flatMap(r=>r.coordinates),zoomController.current.getZoom())
    :{center:new n.LatLng(35.75,127.25),zoom:map.current.getMinZoom()};
   zoomController.current.flyTo(target.center,target.zoom);
  };
- return <main className={`map-shell naver-map-shell`}><div className="map" ref={element}/>{!ready&&!tileError&&<div className="map-loading" role="status">네이버 지도를 불러오고 있습니다…</div>}<div className="map-location"><MapPin size={15}/>{rankingRegions?'전국 추천 지역':region?region.name:'대한민국'}<span>›</span><strong>{rankingRegions?'지역별 순위 지도':region?'추천 코스 지도':'연습 지역 둘러보기'}</strong></div><div className="map-top-note"><span className="green-dot"/> 천천히, 자신 있게 시작하세요</div><div className="map-controls" data-zoom={zoom}><button aria-label="일반 지도 / 위성 지도 전환" title="일반 지도 / 위성 지도 전환" className={layer==='satellite'?'on':''} onClick={()=>setLayer(l=>l==='standard'?'satellite':'standard')}><Layers size={21}/></button><div><button aria-label="지도 확대" disabled={!ready||zoom>=17} title={zoom>=17?"최대 확대 상태입니다":"지도 확대"} onClick={()=>changeZoom(0.5)}><Plus size={21}/></button><button aria-label="지도 축소" disabled={!ready||zoom<=minZoom} title={zoom<=minZoom?"최소 줌 6 상태입니다":"지도 축소"} onClick={()=>changeZoom(-0.5)}><Minus size={21}/></button></div><button aria-label="전체 코스 보기" title="전체 코스 보기" onClick={recenter}><LocateFixed size={21}/></button></div>{tileError&&<div className="tile-error" role="status">{tileError}<button className="map-retry" onClick={()=>window.location.reload()}>다시 연결</button></div>}{selected?<div className="map-selected"><span className="selected-icon"><Navigation size={22}/></span><div><small>지금 선택한 코스</small><strong>{selected.name}</strong><p>{selected.distance} km <i/> 약 {selected.duration}분 <i/> <span><Repeat2 size={12}/> 출발점으로 돌아오는 코스</span></p></div><button aria-label="선택 코스 상세 보기" onClick={()=>onDetail(selected.id)}><ChevronRight size={23}/></button></div>:!rankingRegions&&<div className="map-welcome"><span className="selected-icon"><Navigation size={22}/></span><div><strong>{rankingRegions?"지역을 누르면 코스를 추천해드려요":"첫 드라이브, 가까운 곳부터"}</strong><p>{rankingRegions?"지도 위 지역명이나 왼쪽 순위를 선택하세요.":"목록에서 지역을 선택하면 연습 코스를 볼 수 있어요."}</p></div></div>}<div className="map-legend"><span><i className={rankingRegions?"legend-region":"legend-line"}/>{rankingRegions?"추천 지역":"추천 코스"}</span><span><i className="legend-dot"/>{rankingRegions?"코스 보기":"출발 · 도착"}</span>{rankingRegions&&<small>확대하면 더 보기</small>}</div></main>;
+ return <main className={`map-shell naver-map-shell`}><div className="map" ref={element}/><LaneRoadStatus zoom={zoom} state={laneRoads.kind === 'ready' && laneRoads.features.length && laneRendering ? {...laneRoads,kind:'rendering'} : laneRoads}><ConnectedCourseControl features={laneRoads.features} viewport={laneViewport} range={distanceRange} selection={laneSelection} ready={laneRoads.kind === 'ready'} onCourse={setConnectedCourse}/></LaneRoadStatus>{!ready&&!tileError&&<div className="map-loading" role="status">네이버 지도를 불러오고 있습니다…</div>}<div className="map-location"><MapPin size={15}/>{rankingRegions?'전국 추천 지역':selectedRoad?selectedRoad.roadName:selectedArea?selectedArea.name:region?region.name:'대한민국'}<span>›</span><strong>{rankingRegions?'지역별 순위 지도':selectedRoad?'선택한 도로':selectedArea?'선택한 지역':region?'추천 코스 지도':'연습 지역 둘러보기'}</strong></div><div className="map-top-note"><span className="green-dot"/> 천천히, 자신 있게 시작하세요</div><div className="map-controls" data-zoom={zoom}><button aria-label="일반 지도 / 위성 지도 전환" title="일반 지도 / 위성 지도 전환" className={layer==='satellite'?'on':''} onClick={()=>setLayer(l=>l==='standard'?'satellite':'standard')}><Layers size={21}/></button><div><button aria-label="지도 확대" disabled={!ready||zoom>=17} title={zoom>=17?"최대 확대 상태입니다":"지도 확대"} onClick={()=>changeZoom(0.5)}><Plus size={21}/></button><button aria-label="지도 축소" disabled={!ready||zoom<=minZoom} title={zoom<=minZoom?"최소 줌 7 상태입니다":"지도 축소"} onClick={()=>changeZoom(-0.5)}><Minus size={21}/></button></div><button aria-label="전체 코스 보기" title="전체 코스 보기" onClick={recenter}><LocateFixed size={21}/></button></div>{tileError&&<div className="tile-error" role="status">{tileError}<button className="map-retry" onClick={()=>window.location.reload()}>다시 연결</button></div>}{selectedRoad?<RoadMapInfo road={selectedRoad}/>:selected?<div className="map-selected"><span className="selected-icon"><Navigation size={22}/></span><div><small>지금 선택한 코스</small><strong>{selected.name}</strong><p>{selected.distance} km <i/> 약 {selected.duration}분 <i/> <span><Repeat2 size={12}/> 출발점으로 돌아오는 코스</span></p></div><button aria-label="선택 코스 상세 보기" onClick={()=>onDetail(selected.id)}><ChevronRight size={23}/></button></div>:!rankingRegions&&!selectedArea&&<div className="map-welcome"><span className="selected-icon"><Navigation size={22}/></span><div><strong>{rankingRegions?"지역을 누르면 코스를 추천해드려요":"첫 드라이브, 가까운 곳부터"}</strong><p>{rankingRegions?"지도 위 지역명이나 왼쪽 순위를 선택하세요.":"목록에서 지역을 선택하면 연습 코스를 볼 수 있어요."}</p></div></div>}{!selectedArea&&<div className="map-legend"><span><i className={rankingRegions?"legend-region":"legend-line"}/>{rankingRegions?"추천 지역":selectedRoad?"선택한 도로":"추천 코스"}</span>{!selectedRoad&&<span><i className="legend-dot"/>{rankingRegions?"코스 보기":"출발 · 도착"}</span>}{rankingRegions&&<small>확대하면 더 보기</small>}</div>}</main>;
 }
 
 
