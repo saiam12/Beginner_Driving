@@ -3,7 +3,7 @@ import {roadDataCost} from './road-data-cost.js';
 import {validateProfile} from './driver-preferences.js';
 import {MIN_DISTANCE,MAX_DISTANCE,MAX_DISTANCE_SPAN} from './distance-range.js';
 
-export const EVIDENCE_KEYS = ['distance','preferredLanes','narrowRoads','leftTurns','uTurns','rightPractice','turnSimplicity','traffic','accidents'];
+export const EVIDENCE_KEYS = ['distance','preferredLanes','narrowRoads','leftTurns','uTurns','rightPractice','turnSimplicity','junctionPractice','traffic','accidents'];
 export function summarizeCourse(course,index,preferredLanes=[]) {
  const features=course.featureCollection.features,turns={straight:0,right:0,left:0,uturn:0};
  let total=0,preferred=0,narrow=0,trafficMeters=0,accidentMeters=0,trafficSum=0,accidentSum=0;
@@ -18,7 +18,7 @@ export function summarizeCourse(course,index,preferredLanes=[]) {
   if(data.accidentScore!==null){accidentMeters+=meters;accidentSum+=meters*data.accidentScore;accidentPeriods.add(p.accidentPeriod);}
  });
  return {id:`candidate_${index+1}`,distanceKm:total/1000,mode:course.mode,cost:course.cost,
-  preferredLaneRatio:preferredLanes.length?preferred/total:null,narrowRoadRatio:narrow/total,turns,
+  preferredLaneRatio:preferredLanes.length?preferred/total:null,narrowRoadRatio:narrow/total,turns,junctionCount:course.practiceCounts?.junctions??0,
   traffic:{coverage:trafficMeters/total,score:trafficMeters&&trafficPeriods.size===1?trafficSum/trafficMeters:null,period:trafficPeriods.size===1?[...trafficPeriods][0]:null},
   accidents:{coverage:accidentMeters/total,score:accidentMeters&&accidentPeriods.size===1?accidentSum/accidentMeters:null,period:accidentPeriods.size===1?[...accidentPeriods][0]:null}};
 }
@@ -34,14 +34,21 @@ export function validateRecommendationInput(body) {
  if(!body||!finite(body.range?.min,MIN_DISTANCE,MAX_DISTANCE)||!finite(body.range?.max,body.range.min,MAX_DISTANCE)||body.range.max-body.range.min>MAX_DISTANCE_SPAN)throw new Error('주행 거리 조건을 확인해주세요.');
  const profile=validateProfile(body.profile),selected=body.preferredLanes;
  if(!Array.isArray(selected)||selected.length>7||new Set(selected).size!==selected.length||selected.some(lane=>!Number.isInteger(lane)||lane<1||lane>7))throw new Error('선호 차로를 확인해주세요.');
- if(!Array.isArray(body.candidates)||!body.candidates.length||body.candidates.length>5)throw new Error('먼저 코스 후보를 생성해주세요.');
+ const difficulty=body.difficulty??'전체';
+ if(!['전체','쉬움','보통','어려움'].includes(difficulty))throw new Error('희망 난이도를 확인해주세요.');
+ if(!Array.isArray(body.candidates)||!body.candidates.length||body.candidates.length>6)throw new Error('먼저 코스 후보를 생성해주세요.');
  const candidates=body.candidates.map(c=>{
-  if(!c||!/^candidate_[1-5]$/.test(c.id)||!finite(c.distanceKm,body.range.min-0.000001,body.range.max+0.000001)||!['loop','oneway'].includes(c.mode)||!finite(c.cost,0,1e8)||!finite(c.narrowRoadRatio,0,1)||!(c.preferredLaneRatio===null||finite(c.preferredLaneRatio,0,1))||selected.length===0&&c.preferredLaneRatio!==null||selected.length>0&&c.preferredLaneRatio===null)throw new Error('후보 정보가 올바르지 않습니다.');
+  if(!c||!/^candidate_[1-6]$/.test(c.id)||!finite(c.distanceKm,body.range.min-0.000001,body.range.max+0.000001)||!['loop','oneway'].includes(c.mode)||!finite(c.cost,0,1e8)||!finite(c.narrowRoadRatio,0,1)||!(c.preferredLaneRatio===null||finite(c.preferredLaneRatio,0,1))||selected.length===0&&c.preferredLaneRatio!==null||selected.length>0&&c.preferredLaneRatio===null)throw new Error('후보 정보가 올바르지 않습니다.');
+  const level=c.difficulty??null;
+  const difficultyFallback=c.difficultyFallback??false;
+  if(typeof difficultyFallback!=='boolean'||level!==null&&(!['쉬움','보통','어려움'].includes(level)||difficulty!=='전체'&&difficulty!==level&&!difficultyFallback))throw new Error('후보 난이도를 확인해주세요.');
   const turns={};for(const key of ['straight','right','left','uturn']){if(!Number.isInteger(c.turns?.[key])||!finite(c.turns[key],0,12000))throw new Error('회전 정보를 확인해주세요.');turns[key]=c.turns[key];}
-  return {id:c.id,distanceKm:c.distanceKm,mode:c.mode,cost:c.cost,preferredLaneRatio:c.preferredLaneRatio,narrowRoadRatio:c.narrowRoadRatio,turns,traffic:metric(c.traffic),accidents:metric(c.accidents)};
+  const junctionCount=c.junctionCount??0;
+  if(!Number.isInteger(junctionCount)||!finite(junctionCount,0,12000))throw new Error('교차로 정보를 확인해주세요.');
+  return {junctionCount,id:c.id,difficulty:level,difficultyFallback,distanceKm:c.distanceKm,mode:c.mode,cost:c.cost,preferredLaneRatio:c.preferredLaneRatio,narrowRoadRatio:c.narrowRoadRatio,turns,traffic:metric(c.traffic),accidents:metric(c.accidents)};
  });
  if(new Set(candidates.map(c=>c.id)).size!==candidates.length||new Set(candidates.map(c=>c.mode)).size!==1)throw new Error('후보 식별 정보를 확인해주세요.');
- return {profile,range:{min:body.range.min,max:body.range.max},preferredLanes:[...selected],candidates};
+ return {profile,difficulty,range:{min:body.range.min,max:body.range.max},preferredLanes:[...selected],candidates};
 }
 export function comparableMetric(candidates,key) {
  return candidates.every(c=>c[key].coverage===1&&c[key].score!==null&&c[key].period!==null)&&new Set(candidates.map(c=>c[key].period)).size===1;
@@ -54,7 +61,7 @@ export function recommendationSchema(input) {
 }
 export function evidenceText(candidate,key) {
  const t=candidate.turns;
- return {distance:`실제 거리 ${candidate.distanceKm.toFixed(2)}km`,preferredLanes:`선호 차로 비율 ${Math.round(candidate.preferredLaneRatio*100)}%`,narrowRoads:`1차로 구간 비율 ${Math.round(candidate.narrowRoadRatio*100)}%`,leftTurns:`좌회전 ${t.left}회`,uTurns:`유턴 ${t.uturn}회`,rightPractice:`우회전 ${t.right}회`,turnSimplicity:`회전 ${t.left+t.right+t.uturn}회 · km당 ${((t.left+t.right+t.uturn)/candidate.distanceKm).toFixed(1)}회`,traffic:`교통량 비교 지표 ${candidate.traffic.score?.toFixed(2)} · 전체 구간 관측`,accidents:`사고 비교 지표 ${candidate.accidents.score?.toFixed(2)} · 전체 구간 관측`}[key];
+ return {distance:`실제 거리 ${candidate.distanceKm.toFixed(2)}km`,preferredLanes:`선호 차로 비율 ${Math.round(candidate.preferredLaneRatio*100)}%`,narrowRoads:`1차로 구간 비율 ${Math.round(candidate.narrowRoadRatio*100)}%`,leftTurns:`좌회전 ${t.left}회`,uTurns:`유턴 ${t.uturn}회`,rightPractice:`우회전 ${t.right}회`,junctionPractice:`교차로 추정 노드 ${candidate.junctionCount}회`,turnSimplicity:`회전 ${t.left+t.right+t.uturn}회 · km당 ${((t.left+t.right+t.uturn)/candidate.distanceKm).toFixed(1)}회`,traffic:`교통량 비교 지표 ${candidate.traffic.score?.toFixed(2)} · 전체 구간 관측`,accidents:`사고 비교 지표 ${candidate.accidents.score?.toFixed(2)} · 전체 구간 관측`}[key];
 }
 export function validateRecommendationOutput(output,input) {
  const allowed=allowedEvidence(input);

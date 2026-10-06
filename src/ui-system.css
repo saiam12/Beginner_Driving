@@ -1,0 +1,184 @@
+/* Shared presentation for the existing map workspace. Colors remain owned by styles.css. */
+:root {
+  --surface-subtle: #f5f7fa;
+  --surface-selected: #edf3ff;
+  --radius-control: 7px;
+  --radius-panel: 10px;
+  --shadow-panel: 0 3px 12px #24324714;
+}
+
+body { line-height: 1.6; }
+button { transition: background-color .15s, border-color .15s, color .15s; }
+button:hover { filter: none; }
+button:disabled { cursor: default; }
+button:disabled:hover { filter: none; }
+button:focus-visible, input:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+button:not(:disabled):active { filter: brightness(.94); }
+summary { cursor: pointer; }
+summary:hover { color: var(--color-primary); }
+
+.header { padding-inline: 24px; }
+.brand { letter-spacing: -.6px; }
+.brand-icon { border-radius: var(--radius-panel); box-shadow: none; background: var(--color-primary); }
+.brand small { color: var(--color-muted); }
+.search { border-radius: var(--radius-control); background: var(--surface-subtle); }
+.search button { background: var(--color-primary); }
+.search-clear:hover, .guide-trigger:hover { color: var(--color-primary); background: var(--surface-selected); }
+.guide-trigger { border-radius: var(--radius-control); padding-inline: 8px; }
+.lane-filter-buttons { border-radius: var(--radius-control); background: var(--surface-subtle); }
+.lane-filter-buttons button:not(:disabled):hover { background: var(--surface-selected); color: var(--color-primary); }
+.lane-filter-buttons button[aria-pressed="true"]:hover { background: var(--color-primary); color: white; }
+.lane-filter-clear:not(:disabled):hover { text-decoration: underline; }
+.tabs button { font-size: 14px; color: var(--color-muted); }
+.tabs button:hover { color: var(--color-primary); background: var(--surface-subtle); }
+.tabs .active { color: var(--color-primary); border-color: var(--color-primary); }
+.sidebar { box-shadow: none; }
+.sidebar-footer { height: 36px; font-size: 12px; background: var(--surface-subtle); }
+
+.distance-control, .driver-preferences { padding: 20px 24px; background: var(--color-surface); }
+.distance-title, .driver-preferences legend { font-size: 14px; color: var(--color-text); font-weight: 600; }
+.distance-heading output { color: var(--color-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.distance-heading output strong { color: var(--color-text); font-size: 20px; }
+.distance-fields label, .distance-labels { color: var(--color-muted); font-size: 12px; }
+.distance-fields label>div { border-color: var(--color-border); border-radius: var(--radius-control); min-height: 40px; }
+.distance-fields input { color: var(--color-text); font-size: 15px; font-variant-numeric: tabular-nums; }
+.distance-control>p { margin-top: 8px; font-size: 12px; line-height: 1.65; }
+.difficulty-control { padding-top: 16px; margin-top: 16px; gap: 8px; }
+.difficulty-control>span { font-size: 13px; color: var(--color-text); }
+.difficulty-control button, .driver-choice button, .connected-course-mode button,
+.connected-course-options button, .mobile-view-switch button {
+  min-height: 40px; font-size: 13px; font-weight: 500; border-radius: var(--radius-control);
+  border: 1px solid var(--color-border); color: var(--color-text); background: var(--color-surface);
+}
+.difficulty-control button:hover, .driver-choice button:hover,
+.connected-course-mode button:not(:disabled):hover, .connected-course-options button:hover {
+  background: var(--surface-subtle); border-color: #a6b3c6;
+}
+.difficulty-control button.active, .driver-choice button[aria-pressed="true"],
+.connected-course-mode button[aria-pressed="true"], .mobile-view-switch button[aria-pressed="true"] {
+  background: var(--surface-selected); color: var(--color-primary); border-color: var(--color-primary); box-shadow: none;
+}
+.driver-preferences legend { margin-bottom: 10px; }
+.driver-preferences legend small { font-size: 12px; color: var(--color-muted); font-weight: 400; margin-left: 8px; }
+.driver-choice { gap: 8px; margin-bottom: 10px; }
+.driver-preferences fieldset { margin-bottom: 0; }
+
+.resizable-sidebar .welcome { padding: 24px; }
+.resizable-sidebar .welcome h1 { font-size: 21px; line-height: 1.5; letter-spacing: -.6px; margin: 0 0 8px; }
+.welcome .intro-text { font-size: 14px; line-height: 1.75; }
+.welcome h3 { margin-top: 24px; font-size: 14px; }
+.region-chips button { font-size: 13px; border-color: var(--color-border); border-radius: var(--radius-control); }
+.welcome-note { margin-top: 16px; font-size: 12px; line-height: 1.7; color: var(--color-muted); }
+.results-heading h2, .ranking h2, .route-detail h2 { font-size: 22px; letter-spacing: -.6px; }
+.results-heading>p, .ranking .subtext { font-size: 14px; color: var(--color-muted); line-height: 1.7; }
+.result-note, .ranking-banner { background: var(--surface-subtle); color: var(--color-muted); border-radius: var(--radius-control); }
+.result-note { margin-top: 12px; padding: 8px 10px; }
+.mock-badge { color: var(--color-muted); border-color: var(--color-border); background: var(--color-surface); }
+.ranking-banner { padding: 12px; margin: 16px 0; }
+.ranking-banner strong { font-size: 14px; color: var(--color-text); }
+.route-card { border-color: var(--color-border); border-radius: var(--radius-panel); }
+.route-card.selected { border-color: var(--color-primary); box-shadow: inset 3px 0 var(--color-primary); background: var(--color-surface); }
+.card-select:hover, .detail-link:hover { background: var(--surface-subtle); }
+.card-title h3 { font-size: 16px; line-height: 1.5; }
+.rank, .route-stats, .route-stats b, .detail-link, .metric-label, .ranking-action { color: var(--color-muted); }
+.score { font-size: 22px; color: var(--color-text); }
+.score small { color: var(--color-muted); }
+.compact-metrics { background: var(--surface-subtle); }
+.metric-good { color: #226c52; }
+.metric-warn { color: #8a601c; }
+.badge.easy { color: #226c52; background: #eaf5ef; }
+.badge.medium { color: #8a601c; background: #faf1e2; }
+.badge.hard { color: #a03232; background: #fbecec; }
+.reroll { font-size: 13px; color: var(--color-text); background: var(--color-surface); border-color: var(--color-border); }
+.reroll:hover { background: var(--surface-subtle); border-color: #a6b3c6; }
+.data-note { text-align: left; font-size: 12px; line-height: 1.7; }
+.ranking-row>span { color: var(--color-text); }
+.ranking-row p { color: var(--color-muted); line-height: 1.6; }
+.ranking-list .ranking-row:hover { background: var(--surface-subtle); }
+.reason { background: var(--surface-subtle); border-radius: var(--radius-panel); }
+.detail-summary strong { font-size: 24px; }
+.suitability { color: var(--color-text); background: var(--surface-subtle); }
+
+.lane-road-status {
+  width: 360px; padding: 16px; gap: 8px; border-radius: var(--radius-panel); box-shadow: var(--shadow-panel);
+}
+.lane-road-status[data-collapsed="true"] { width: 220px; padding: 10px 12px; }
+.course-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: sticky; top: 0; background: var(--color-surface); z-index: 1; }
+.course-panel-heading>strong { font-size: 15px; }
+.course-zoom { font-size: 12px; color: var(--color-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.course-panel-status { font-size: 13px; color: var(--color-muted); line-height: 1.65; margin-top: 6px; }
+.lane-road-status small { font-size: 12px; line-height: 1.65; margin-top: 6px; }
+.lane-road-status .lane-road-toggle { width: 32px; min-height: 32px; color: var(--color-muted); background: var(--surface-subtle); position: sticky; top: 0; }
+.lane-road-toggle:hover { border-color: var(--color-primary); }
+.connected-course-control { margin-top: 12px; padding-top: 12px; }
+.course-start-control strong { font-size: 13px; margin-bottom: 8px; }
+.connected-course-mode { gap: 6px; }
+.connected-course-mode button { padding-inline: 10px; }
+.course-start-control .connected-course-mode { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); }
+.connected-course-actions { gap: 10px; margin-top: 12px; }
+.lane-road-status .connect-button {
+  width: 100%; min-height: 42px; font-size: 14px; font-weight: 600;
+  background: var(--color-primary); color: var(--color-surface); border-color: var(--color-primary); border-radius: var(--radius-control);
+}
+.lane-road-status .connect-button:disabled { background: var(--surface-subtle); color: var(--color-muted); border-color: var(--color-border); opacity: 1; }
+.lane-road-status button:disabled:not(.connect-button) { color: #657185; opacity: .65; }
+.connected-course-options { margin: 14px 0 10px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); }
+.lane-road-status .connected-course-options button { color: var(--color-text); white-space: normal; }
+.lane-road-status .connected-course-options button[aria-pressed="true"] { color: #a92222; border-color: #dc2626; background: #fef2f2; }
+.ai-recommended { display: block; margin: 0; font-size: 12px; }
+.course-difficulty { display: block; font-size: 12px; color: var(--color-muted); font-weight: 400; }
+.course-shortage { margin-top: 8px; font-size: 12px; color: var(--color-muted); line-height: 1.65; }
+.ai-course-actions { padding-top: 12px; border-top: 1px solid var(--color-border); margin-top: 14px; }
+.ai-course-actions button { width: 150px; font-size: 13px; background: var(--surface-selected); color: var(--color-primary); border-radius: var(--radius-control); }
+.ai-course-actions button:not(:disabled):hover { background: #dfeaff; }
+.ai-course-feedback { max-width: none; min-height: 0; font-size: 13px; }
+.ai-course-feedback:has(strong), .ai-course-feedback:has(p) { margin-top: 12px; padding: 12px; background: var(--surface-subtle); border-radius: var(--radius-control); }
+.connected-course-result { padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--color-border); font-size: 13px; font-weight: 600; }
+.connected-course-result button { display: block; margin: 4px 0 0; font-size: 12px; font-weight: 400; }
+.course-cost-debug { margin-top: 12px; padding-top: 10px; }
+.course-cost-debug summary { font-size: 12px; color: var(--color-muted); line-height: 1.6; }
+.lane-road-status .course-cost-list button { color: var(--color-text); }
+.course-cost-list button:hover { background: var(--surface-subtle); }
+.course-cost-list small { font-size: 12px; }
+.course-error { padding: 10px; border-left: 3px solid #b42323; color: #a92222; background: #fff5f5; margin-top: 12px; }
+.course-limit-note { padding-top: 10px; margin-top: 12px; border-top: 1px solid var(--color-border); }
+.map-location, .map-controls>button, .map-controls>div, .map-selected, .map-welcome { box-shadow: var(--shadow-panel); border-color: var(--color-border); }
+.map-location { color: var(--color-text); }
+.map-location strong, .map-location span { color: var(--color-muted); }
+.map-controls button:hover { background: var(--surface-subtle); color: var(--color-primary); }
+.map-controls button:disabled { color: var(--color-muted); opacity: .5; }
+.map-welcome { min-width: 0; width: 330px; padding: 12px 16px; }
+.map-welcome .selected-icon { display: none; }
+.map-selected strong, .map-welcome strong { font-size: 14px; }
+.guide h2 { font-size: 22px; }
+.primary-button { background: var(--color-primary); border-radius: var(--radius-control); }
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .header { gap: 10px; padding-inline: 16px; }
+  .header .brand { min-width: 150px; font-size: 21px; }
+  .brand small, .lane-filter-label { display: none; }
+  .header .search-container { min-width: 160px; }
+  .lane-filter { gap: 4px; }
+  .lane-filter-buttons button { min-width: 30px; padding-inline: 5px; }
+}
+
+@media (max-width: 900px) {
+  .header { padding-inline: 16px; }
+  .distance-control, .driver-preferences, .resizable-sidebar .welcome { padding-inline: 20px; }
+  .lane-road-status { width: 330px; padding: 12px; max-width: calc(100% - 80px); max-height: calc(100% - 144px); }
+  .course-panel-heading { flex-wrap: wrap; }
+  .connected-course-mode button { padding-inline: 6px; font-size: 12px; }
+  .connected-course-options { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .map-welcome { width: calc(100% - 32px); }
+}
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }
+@media (forced-colors: active) {
+  .driver-choice button[aria-pressed="true"], .connected-course-mode button[aria-pressed="true"], .connected-course-options button[aria-pressed="true"] { outline: 2px solid Highlight; }
+}
+
+/* Keep the oversized Naver raster from scrolling its visible container on focus. */
+.naver-map-shell { overflow: clip; }
+.map-selected { cursor: pointer; }

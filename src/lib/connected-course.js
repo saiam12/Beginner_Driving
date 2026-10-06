@@ -1,6 +1,6 @@
 import {distanceBands,MIN_DISTANCE,MAX_DISTANCE,MAX_DISTANCE_SPAN} from './distance-range.js';
 import {roadDataCost} from './road-data-cost.js';
-import {lanePreferenceMultiplier,driverRoadPenalty,driverTurnPenalty,validateProfile} from './driver-preferences.js';
+import {lanePreferenceMultiplier,driverRoadPenalty,driverTurnPenalty,driverJunctionDiscount,practiceGoalMatch,validateProfile} from './driver-preferences.js';
 export function metersBetween(a,b) {
  const rad=Math.PI/180,dy=(b[1]-a[1])*rad,dx=(b[0]-a[0])*rad;
  const h=Math.sin(dy/2)**2+Math.cos(a[1]*rad)*Math.cos(b[1]*rad)*Math.sin(dx/2)**2;
@@ -55,7 +55,7 @@ function transitionCost(previous,next) {
  if(!previous)return 0;
  // Bearings are fixed for the graph: do not rescan coordinates at every relaxation.
  const type=turnFromDirections(previous.endDirection,next.startDirection);
- return TURN_COSTS[type]+driverTurnPenalty(type,next.profile);
+ return TURN_COSTS[type]+driverTurnPenalty(type,next.profile,TURN_COSTS[type]);
 }
 function shortest(graph,start,limit,blocked=new Set(),target=null,costLimit=Infinity,previousEdge=null,includeTurns=true,retracedPairs=null) {
  const initial={node:start,meters:0,cost:0,parent:null,edge:null,incoming:previousEdge};
@@ -117,6 +117,13 @@ export const CONNECTED_COURSE_COLOR = '#dc2626';
 function connectInBand(features,center,range,mode='loop',options={}) {
  const min=range.min*1000,max=range.max*1000,target=(min+max)/2;
  if(!Number.isFinite(min)||min<=0||max<min||!center?.every(Number.isFinite))throw new Error('거리와 지도 위치를 확인해주세요.');
+ const neighbors=new Map();
+ for(const {properties:p,geometry:g} of features){
+  if(!p.fNode||!p.tNode||g.type!=='LineString')continue;
+  for(const [from,to] of [[p.fNode,p.tNode],[p.tNode,p.fNode]]){
+   if(!neighbors.has(from))neighbors.set(from,new Set());neighbors.get(from).add(to);
+  }
+ }
  const graph=new Map(),reverse=new Map(),startPositions=new Map(),seen=new Set();
  for(const feature of features){
   const p=feature.properties,g=feature.geometry;
@@ -124,8 +131,9 @@ function connectInBand(features,center,range,mode='loop',options={}) {
   if(!p.fNode||!p.tNode||seen.has(p.linkId)||g.type!=='LineString'||g.coordinates.length<2)continue;
   const meters=geometryMeters(g);if(meters<=0||meters>max)continue;seen.add(p.linkId);
   const dataCosts=roadDataCost(p,meters),laneCost=meters*laneCostMultiplier(p.lanes);
-  const preferenceCost=meters*(lanePreferenceMultiplier(p.lanes,options.preferredLanes)+driverRoadPenalty(p.lanes,options.profile));
-  const edge={from:p.fNode,to:p.tNode,meters,laneCost,preferenceCost,profile:options.profile,dataCosts,cost:laneCost+preferenceCost+dataCosts.trafficCost+dataCosts.accidentCost,feature,startDirection:direction(g.coordinates,false),endDirection:direction(g.coordinates,true)};
+  const junction=(neighbors.get(p.fNode)?.size||0)>=3;
+  const preferenceCost=meters*(lanePreferenceMultiplier(p.lanes,options.preferredLanes)+driverRoadPenalty(p.lanes,options.profile))-laneCost*driverJunctionDiscount(junction,options.profile);
+  const edge={junction,from:p.fNode,to:p.tNode,meters,laneCost,preferenceCost,profile:options.profile,dataCosts,cost:laneCost+preferenceCost+dataCosts.trafficCost+dataCosts.accidentCost,feature,startDirection:direction(g.coordinates,false),endDirection:direction(g.coordinates,true)};
   if(!graph.has(edge.from))graph.set(edge.from,[]);graph.get(edge.from).push(edge);
   if(!reverse.has(edge.to))reverse.set(edge.to,[]);reverse.get(edge.to).push({...edge,to:edge.from});
   if(!startPositions.has(edge.from))startPositions.set(edge.from,g.coordinates[0]);
@@ -146,7 +154,14 @@ function connectInBand(features,center,range,mode='loop',options={}) {
   const previous=collectAll?pool.get(key):best;
   if(previous&&(cost>previous.cost||cost===previous.cost&&startDistance>=previous.startDistance))return false;
   const dataCoverage={traffic:edges.reduce((sum,edge)=>sum+(edge.dataCosts.trafficScore===null?0:edge.meters),0)/lengthMeters,accidents:edges.reduce((sum,edge)=>sum+(edge.dataCosts.accidentScore===null?0:edge.meters),0)/lengthMeters};
-  const course={startNode:edges[0].from,startSelection:options.startPoint?'manual':'auto',startNodesCompared:starts.length,mode,lengthMeters,cost,costBreakdown,dataCoverage,startDistance,linkIds:edges.map(edge=>edge.feature.properties.linkId),
+  const practiceCounts={right:0,left:0,uturn:0,narrow:0,junctions:0};
+  edges.forEach((edge,i)=>{
+   if(edge.feature.properties.lanes===1)practiceCounts.narrow+=edge.meters;
+   if(edge.junction)practiceCounts.junctions++;
+   if(i){const type=turnFromDirections(edges[i-1].endDirection,edge.startDirection);if(type in practiceCounts)practiceCounts[type]++;}
+  });
+  const goalMatch=practiceGoalMatch(options.profile,practiceCounts);
+  const course={practiceCounts,goalMatch,startNode:edges[0].from,startSelection:options.startPoint?'manual':'auto',startNodesCompared:starts.length,mode,lengthMeters,cost,costBreakdown,dataCoverage,startDistance,linkIds:edges.map(edge=>edge.feature.properties.linkId),
    start:edges[0].feature.geometry.coordinates[0],end:edges.at(-1).feature.geometry.coordinates.at(-1),
    featureCollection:{type:'FeatureCollection',features:edges.map(edge=>edge.feature)}};
   if(collectAll)pool.set(key,course);
@@ -171,7 +186,7 @@ function connectInBand(features,center,range,mode='loop',options={}) {
     const out=path(label),blocked=new Set(out.slice(0,-1).map(edge=>edge.to));
     // Directed LINK IDs differ on opposite carriageways. Match reversed node pairs
     // so returning along the outward corridor has a soft, length-weighted cost.
-    const retracedPairs=options.profile?.avoid.includes('uturn')?new Map():null;
+    const retracedPairs=options.profile?.goals.includes('uturn')?new Map():null;
     if(retracedPairs)for(const edge of out){if(!retracedPairs.has(edge.from))retracedPairs.set(edge.from,new Set());retracedPairs.get(edge.from).add(edge.to);}
     const back=shortest(graph,label.node,max-label.meters,blocked,start,!collectAll&&best?best.cost-label.cost:Infinity,out.at(-1),true,retracedPairs);
     if(!back.target||label.meters+back.target.meters<min)continue;

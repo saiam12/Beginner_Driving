@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {classifyCourseCandidates,courseOverlapRatio,COURSE_DIFFICULTIES} from '../src/lib/course-overlap.js';
+
+const course=(cost,ids)=>({cost,featureCollection:{features:ids.map(linkId=>({properties:{linkId},geometry:{type:'LineString',coordinates:[[126.9,37.5],[126.91,37.5]]}}))}});
+const costs=[100,110,120,130,360,370,380,390,800,810,820,850];
+const courses=costs.map((cost,i)=>course(cost,[`road-${i}`]));
+const result=classifyCourseCandidates(courses,{difficultyBased:true});
+assert.deepEqual(result.costRange,{min:100,max:850,middle:475,easyUpper:350,hardLower:600});
+assert.deepEqual(result.byDifficulty['쉬움'],[0,1,2,3]);
+assert.deepEqual(result.byDifficulty['보통'],[7,6,5,4]);
+assert.deepEqual(result.byDifficulty['어려움'],[11,10,9,8]);
+assert.equal(result.adoptedIndices.length,6);
+for(const level of COURSE_DIFFICULTIES)assert.equal(result.adoptedIndices.filter(i=>result.difficultyByIndex[i]===level).length,2);
+for(const group of [result.adoptedIndices,...Object.values(result.byDifficulty)])for(const a of group)for(const b of group)if(a!==b)assert(courseOverlapRatio(courses[a],courses[b])<.5);
+
+const overlapping=[...courses,course(840,['road-0']),course(845,['road-1','extra'])];
+const varied=classifyCourseCandidates(overlapping,{difficultyBased:true});
+assert(varied.similarTo[12]);
+assert(!varied.adoptedIndices.includes(13),'Cross-difficulty overlap must still exclude a 50% shared route');
+const identicalCosts=classifyCourseCandidates(costs.map((_,i)=>course(100,[`same-cost-${i}`])),{difficultyBased:true});
+assert.equal(identicalCosts.adoptedIndices.length,6,'Fill the total count without inventing difficulty labels');
+assert.equal(identicalCosts.fallbackIndices.all.length,4);
+assert.equal(identicalCosts.byDifficulty['보통'].length,4);
+assert.equal(identicalCosts.byDifficulty['어려움'].length,4);
+assert(Object.values(identicalCosts.difficultyByIndex).every(level=>level==='쉬움'));
+assert.equal(classifyCourseCandidates([],{difficultyBased:true}).costRange,null);
+const sparse=classifyCourseCandidates([100,500,700,800,900,1000].map((cost,i)=>course(cost,[`sparse-${i}`])),{difficultyBased:true});
+assert.equal(sparse.byDifficulty['쉬움'].length,4);
+assert.equal(sparse.fallbackIndices.byDifficulty['쉬움'].length,3);
+assert.equal(sparse.byDifficulty['쉬움'][1],5,'Use highest-cost compatible fallback first');
+assert.equal(sparse.adoptedIndices.length,6);
+const boundaries=classifyCourseCandidates([0,100,200,300].map((cost,i)=>course(cost,[`boundary-${i}`])),{difficultyBased:true});
+assert.deepEqual(Object.values(boundaries.difficultyByIndex),['쉬움','보통','어려움','어려움']);
+console.log('PASS: cost min/mid/max bands, four per difficulty, six balanced recommendations, cross-group diversity, duplicate suppression, equal costs/empty pool and boundaries');

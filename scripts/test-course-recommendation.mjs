@@ -8,7 +8,7 @@ import {recommendWithGemini,SYSTEM_INSTRUCTION,DEFAULT_GEMINI_MODEL} from '../se
 import {createRecommendationHandler} from '../api/recommend-courses.js';
 const unknown={coverage:0,score:null,period:null};
 const candidate=(id,distanceKm,left=0)=>({id,distanceKm,mode:'loop',cost:distanceKm*1000,preferredLaneRatio:.8,narrowRoadRatio:.1,turns:{straight:5,right:3,left,uturn:0},traffic:{...unknown},accidents:{...unknown}});
-const body={profile:{...DEFAULT_DRIVER_PROFILE,avoid:['left']},range:{min:5,max:10},preferredLanes:[3],candidates:[candidate('candidate_1',5.5,3),candidate('candidate_2',7.5),candidate('candidate_3',9.5,2)]};
+const body={profile:{goals:['left']},range:{min:5,max:10},preferredLanes:[3],candidates:[candidate('candidate_1',5.5,3),candidate('candidate_2',7.5),candidate('candidate_3',9.5,2)]};
 const input=validateRecommendationInput(body);
 const output={ranking:[{candidateId:'candidate_2',evidenceKeys:['leftTurns','distance']},{candidateId:'candidate_1',evidenceKeys:['rightPractice']},{candidateId:'candidate_3',evidenceKeys:['uTurns']}]};
 const validated=validateRecommendationOutput(output,input);
@@ -19,7 +19,12 @@ assert.throws(()=>validateRecommendationOutput({ranking:output.ranking.map((item
 assert.throws(()=>validateRecommendationOutput({ranking:output.ranking.map(item=>({...item,evidenceKeys:['traffic']}))},input));
 assert.throws(()=>validateRecommendationInput({...body,range:{min:5,max:20}}));
 assert.throws(()=>validateRecommendationInput({...body,profile:{goal:'invalid',avoid:[]}}));
-assert.deepEqual(input.profile,{goal:'gentle',avoid:['left']});
+assert.deepEqual(input.profile,{goals:['left']});
+assert.deepEqual(validateRecommendationInput({...body,profile:{goals:['right','junctions','left','uturn','narrow']}}).profile.goals,['right','junctions','left','uturn','narrow']);
+assert.deepEqual(validateRecommendationInput({...body,profile:DEFAULT_DRIVER_PROFILE}).profile,{goals:[]});
+assert.throws(()=>validateRecommendationInput({...body,profile:{goals:['right','right']}}));
+assert.throws(()=>validateRecommendationInput({...body,profile:{goals:['gentle']}}));
+assert.deepEqual(validateRecommendationInput({...body,profile:{goal:'right',avoid:['uturn']}}).profile,{goals:['right','uturn']});
 assert.equal(validateRecommendationInput({...body,profile:{...body.profile,experience:'beginner'}}).profile.experience,undefined);
 assert.throws(()=>validateRecommendationInput({...body,candidates:[candidate('candidate_1',31)]}));
 assert.throws(()=>validateRecommendationInput({...body,candidates:[{...body.candidates[0],traffic:{coverage:0,score:0,period:'now'}}]}));
@@ -29,7 +34,7 @@ assert(allowedEvidence({...input,candidates:observed}).includes('traffic'));
 assert(allowedEvidence({...input,candidates:observed}).includes('accidents'),'Measured zero is usable');
 assert(!allowedEvidence({...input,candidates:observed.map((c,i)=>i?c:{...c,traffic:{...c.traffic,coverage:.5}})}).includes('traffic'));
 assert(!allowedEvidence({...input,candidates:observed.map((c,i)=>i?c:{...c,traffic:{...c.traffic,period:'night'}})}).includes('traffic'));
-assert(driverRoadPenalty(1,body.profile)===0);assert(driverRoadPenalty(1,{...body.profile,avoid:['narrow']})>0);assert(driverTurnPenalty('left',body.profile)>driverTurnPenalty('right',body.profile));
+assert(driverRoadPenalty(1,body.profile)===0);assert(driverRoadPenalty(1,{goals:['narrow']})<0);assert(driverTurnPenalty('left',body.profile)<driverTurnPenalty('right',body.profile));
 const coords=[[126.9,37.5],[126.92,37.5],[126.92,37.52],[126.9,37.52],[126.9,37.5]];
 const roadFeatures=coords.slice(1).map((to,i)=>({type:'Feature',properties:{linkId:`l${i}`,fNode:`n${i}`,tNode:`n${(i+1)%4}`,lanes:i===0?2:3},geometry:{type:'LineString',coordinates:[coords[i],to]}}));
 const course=connectCourses(roadFeatures,coords[0],body.range,'loop',{preferredLanes:[3]})[0];
@@ -46,6 +51,9 @@ assert.equal(result.source,'gemini');assert.equal(result.recommendedCandidateId,
 assert.equal(sent.options.headers['x-goog-api-key'],'test-server-secret');assert(!sent.url.includes('secret'));assert(sent.body.systemInstruction.parts[0].text===SYSTEM_INSTRUCTION);
 assert(sent.body.generationConfig.responseFormat.text.schema.properties.ranking);assert(!JSON.stringify(result).includes('secret'));
 assert.equal(sent.body.generationConfig.responseFormat.text.mimeType,'APPLICATION_JSON');
+const allGoals=['right','junctions','left','uturn','narrow'];
+await recommendWithGemini({...body,profile:{goals:allGoals}},{apiKey:'test-server-secret',fetchImpl:success});
+assert.deepEqual(JSON.parse(sent.body.contents[0].parts[0].text).profile,{goals:allGoals});
 await assert.rejects(()=>recommendWithGemini(body,{fetchImpl:success}),e=>e.status===503);
 await assert.rejects(()=>recommendWithGemini(body,{apiKey:'test',fetchImpl:async()=>new Response('provider raw secret',{status:429})}),e=>e.status===429&&!e.message.includes('secret'));
 await assert.rejects(()=>recommendWithGemini(body,{apiKey:'test',fetchImpl:async()=>Response.json({candidates:[{finishReason:'MAX_TOKENS'}]})}),e=>e.status===502);
@@ -79,7 +87,23 @@ const five=validateRecommendationInput({...body,candidates:Array.from({length:5}
 assert.equal(five.candidates.length,5);
 const fiveOutput={ranking:[...five.candidates].reverse().map(c=>({candidateId:c.id,evidenceKeys:['distance']}))};
 assert.equal(validateRecommendationOutput(fiveOutput,five).recommendedCandidateId,'candidate_5');
-assert.throws(()=>validateRecommendationInput({...body,candidates:Array.from({length:6},(_,i)=>candidate(`candidate_${i+1}`,5.5))}));
+assert.throws(()=>validateRecommendationInput({...body,candidates:Array.from({length:7},(_,i)=>candidate(`candidate_${i+1}`,5.5))}));
 const fiveGemini=await recommendWithGemini(five,{apiKey:'test',fetchImpl:async()=>Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(fiveOutput)}]}}]})});
 assert.equal(fiveGemini.recommendedCandidateId,'candidate_5');
-console.log('PASS: five shortlisted candidates, candidate_5 ranking and rejection of more than five');
+const six=validateRecommendationInput({...body,difficulty:'전체',candidates:Array.from({length:6},(_,i)=>({...candidate(`candidate_${i+1}`,5.5),difficulty:['쉬움','보통','어려움'][Math.floor(i/2)]}))});
+const sixOutput={ranking:[...six.candidates].reverse().map(c=>({candidateId:c.id,evidenceKeys:['distance']}))};
+assert.equal(validateRecommendationOutput(sixOutput,six).recommendedCandidateId,'candidate_6');
+const sixGemini=await recommendWithGemini(six,{apiKey:'test',fetchImpl:async(_,options)=>{
+ const input=JSON.parse(JSON.parse(options.body).contents[0].parts[0].text);
+ assert.equal(input.difficulty,'전체');assert.equal(input.candidates.length,6);assert.equal(input.candidates[5].difficulty,'어려움');
+ return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(sixOutput)}]}}]});
+}});
+assert.equal(sixGemini.recommendedCandidateId,'candidate_6');
+assert.throws(()=>validateRecommendationInput({...six,difficulty:'쉬움'}));
+assert.equal(validateRecommendationInput({...body,difficulty:'쉬움',candidates:[{...body.candidates[0],difficulty:'어려움',difficultyFallback:true}]}).candidates[0].difficulty,'어려움');
+assert.throws(()=>validateRecommendationInput({...body,difficulty:'invalid'}));
+console.log('PASS: five/six candidate ranking, six difficulty labels in Gemini input, wrong difficulty and seven-candidate rejection');
+
+assert.equal(validateRecommendationInput({...body,candidates:[{...body.candidates[0],junctionCount:4}]}).candidates[0].junctionCount,4);
+assert.throws(()=>validateRecommendationInput({...body,candidates:[{...body.candidates[0],junctionCount:-1}]}));
+assert.throws(()=>validateRecommendationInput({...body,candidates:[{...body.candidates[0],junctionCount:1.5}]}));

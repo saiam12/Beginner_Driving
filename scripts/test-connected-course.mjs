@@ -129,7 +129,7 @@ for(const avoid of [[],['left','uturn']]){
  const curveFeatures=curveCourse.featureCollection.features;
  const expected=curveFeatures.slice(1).reduce((sum,feature,i)=>{
   const type=turnType(curveFeatures[i],feature);
-  return sum+TURN_COSTS[type]+(type==='left'&&avoid.includes('left')?250:0)+(type==='uturn'&&avoid.includes('uturn')?500:0);
+  return sum+TURN_COSTS[type]+(avoid.includes(type)?-TURN_COSTS[type]*.7:0);
  },0);
  assert.equal(curveCourse.costBreakdown.turns,expected);
 }
@@ -232,7 +232,7 @@ for(const profile of [undefined,{goal:'gentle',avoid:[]},{goal:'gentle',avoid:['
  assert.equal(defaultReturn.costBreakdown.turns,TURN_COSTS.uturn,'base turn cost remains without the U-turn preference');
 }
 assert(exploreCourseCandidates(returnRoads,points.S,range,'loop',{startPoint:points.S})[0].linkIds.includes('same-road-back'),'without U-turn selection use the original lowest-cost return');
-assert.equal(returnFallback.costBreakdown.turns,TURN_COSTS.uturn+500,'selected U-turn also retains its existing turn penalty');
+assert.equal(returnFallback.costBreakdown.turns,TURN_COSTS.uturn*.3,'selected U-turn receives a turn discount');
 console.log('PASS: selecting U-turn enables alternate-return preference, no added retracing cost when unselected, fallback, cost/physical distance separation and immutable graph');
 
 function overlapRoute(parts,cost){
@@ -260,19 +260,19 @@ assert.deepEqual(classifyCourseCandidates([at90,overlapBase,different]).eligible
 assert.equal(classifyCourseCandidates([at90,overlapBase,different]).similarTo[0].withIndex,1);
 assert.deepEqual(classifyCourseCandidates([]),{eligibleIndices:[],similarTo:{},adoptedIndices:[]});
 assert.deepEqual(suppression.adoptedIndices,[0,4],'89.9% remains in the development list but cannot be adopted alongside the cheaper route');
-const diverseBase=overlapRoute([['shared-a',399],['shared-b',1],['base-only',600]],10);
-const exactly40=overlapRoute([['shared-a',399],['shared-b',1],['exact-only',600]],20);
-const below40=overlapRoute([['shared-a',399],['below-only',601]],30);
-const overlapsSecond=overlapRoute([['below-only',601],['second-only',399]],40);
-const diversePool=[diverseBase,exactly40,below40,overlapsSecond,...Array.from({length:5},(_,i)=>overlapRoute([[`unique-${i}`,1000]],50+i))];
+const diverseBase=overlapRoute([['shared-a',499],['shared-b',1],['base-only',500]],10);
+const exactly50=overlapRoute([['shared-a',499],['shared-b',1],['exact-only',500]],20);
+const below50=overlapRoute([['shared-a',499],['below-only',501]],30);
+const overlapsSecond=overlapRoute([['below-only',501],['second-only',499]],40);
+const diversePool=[diverseBase,exactly50,below50,overlapsSecond,...Array.from({length:5},(_,i)=>overlapRoute([[`unique-${i}`,1000]],50+i))];
 const diverseSelection=classifyCourseCandidates(diversePool);
-assert.deepEqual(diverseSelection.eligibleIndices,[0,1,2,3,4,5,6,7,8],'40% exclusions remain inspectable in the full development list');
-assert.deepEqual(diverseSelection.adoptedIndices,[0,2,4,5,6],'inclusive 40% exclusion, 39.9% acceptance, comparison against every adopted route, refill and cap at five');
+assert.deepEqual(diverseSelection.eligibleIndices,[0,1,2,3,4,5,6,7,8],'50% exclusions remain inspectable in the full development list');
+assert.deepEqual(diverseSelection.adoptedIndices,[0,2,4,5,6],'inclusive 50% exclusion, 49.9% acceptance, comparison against every adopted route, refill and cap at five');
 for(const count of [3,4,5]){
  const chosen=diverseSelection.adoptedIndices.slice(0,count);
  assert.equal(chosen.length,count);
- chosen.forEach((index,i)=>chosen.slice(0,i).forEach(other=>assert(courseOverlapRatio(diversePool[index],diversePool[other])<.40)));
+ chosen.forEach((index,i)=>chosen.slice(0,i).forEach(other=>assert(courseOverlapRatio(diversePool[index],diversePool[other])<.50)));
 }
-assert.deepEqual(classifyCourseCandidates([exactly40,diverseBase]).adoptedIndices,[1],'prefer cheaper route and do not relax threshold to fill slots');
-console.log('PASS: adopted candidates are pairwise below 40% overlap, cost-first replacement, 3/4/5 selection and shortage handling');
+assert.deepEqual(classifyCourseCandidates([exactly50,diverseBase]).adoptedIndices,[1],'prefer cheaper route and do not relax threshold to fill slots');
+console.log('PASS: adopted candidates are pairwise below 50% overlap, cost-first replacement, 3/4/5 selection and shortage handling');
 console.log('PASS: length-weighted directed LINK overlap, inclusive 90 percent threshold, 89.9/90.1 boundaries, cheaper survivor, sparse stable indices and replacement shortlist');
