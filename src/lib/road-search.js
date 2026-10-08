@@ -54,3 +54,13 @@ export const formatRegionName=name=>name.replace(/시(?=[^\s]+구$)/g,'시 ');
 export const regionLabel=road=>road.regions.length?road.regions.map(formatRegionName).join(' · '):`지역 미확인 (위도 ${road.centerLat.toFixed(4)}, 경도 ${road.centerLng.toFixed(4)})`;
 export const lengthLabel=road=>road.lengthMeters>=1000?`${(road.lengthMeters/1000).toFixed(2)} km`:`${Math.round(road.lengthMeters)} m`;
 export function linkTooltip(p){return `${p.roadName}\n${p.regions.map(formatRegionName).join(' · ')||'지역 미확인'}\n${p.lanes==null?'차로 정보 없음':p.lanes+'차로'}\nLINK_ID: ${p.linkId}`;}
+
+export async function loadCourseRegions({signal}={}) {
+ const [index,boundaries]=await Promise.all([getManifest(signal),readJSON('areas/index.json',signal)]);
+ return (index.areas||[]).map(area=>({...area,id:area.name,boundaryFile:boundaries[area.name],name:formatRegionName(area.name),kind:'area'})).sort((a,b)=>Number(b.name.startsWith('서울'))-Number(a.name.startsWith('서울'))||a.name.localeCompare(b.name,'ko'));
+}
+
+export async function loadCourseRegionBoundary(area,{signal}={}) {
+ if(!area.boundaryFile)throw new Error('해당 지역의 경계 자료가 없습니다.');
+ return {...area,geometry:await readJSON(`areas/${area.boundaryFile}`,signal)};
+}

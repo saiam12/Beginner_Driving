@@ -17,3 +17,7 @@ dist/
 /sidebar-*.jpg
 /ui-*.jpg
 /preview.jpg
+# Superseded service proposal drafts
+docs/차근차근_10장_서비스기획서.md
+docs/차근차근_대구파일럿_10장_기획서.md
+docs/차근차근_서비스기획서.md

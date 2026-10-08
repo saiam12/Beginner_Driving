@@ -10,6 +10,8 @@ const unknown={coverage:0,score:null,period:null};
 const candidate=(id,distanceKm,left=0)=>({id,distanceKm,mode:'loop',cost:distanceKm*1000,preferredLaneRatio:.8,narrowRoadRatio:.1,turns:{straight:5,right:3,left,uturn:0},traffic:{...unknown},accidents:{...unknown}});
 const body={profile:{goals:['left']},range:{min:5,max:10},preferredLanes:[3],candidates:[candidate('candidate_1',5.5,3),candidate('candidate_2',7.5),candidate('candidate_3',9.5,2)]};
 const input=validateRecommendationInput(body);
+assert.equal(validateRecommendationInput({...body,range:{min:40,max:50},candidates:[{...candidate('candidate_1',45),mode:'oneway'}]}).range.max,50);
+assert.throws(()=>validateRecommendationInput({...body,range:{min:40,max:50},candidates:[candidate('candidate_1',45)]}));
 const output={ranking:[{candidateId:'candidate_2',evidenceKeys:['leftTurns','distance']},{candidateId:'candidate_1',evidenceKeys:['rightPractice']},{candidateId:'candidate_3',evidenceKeys:['uTurns']}]};
 const validated=validateRecommendationOutput(output,input);
 assert.equal(validated.recommendedCandidateId,'candidate_2');assert.deepEqual(validated.missingData,['traffic','accidents']);

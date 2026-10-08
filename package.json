@@ -14,7 +14,8 @@
     "test:ai": "node scripts/test-course-recommendation.mjs",
     "test:pool": "node scripts/test-gemini-key-pool.mjs",
     "test:ai:live": "node scripts/verify-gemini-live.mjs",
-    "test:goals": "node scripts/test-practice-goals.mjs"
+    "test:goals": "node scripts/test-practice-goals.mjs",
+    "test:regions": "node scripts/test-region-saved-courses.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

@@ -1,3 +1,4 @@
+import {pointInRegion} from './region-boundary.js';
 import {distanceBands,MIN_DISTANCE,MAX_DISTANCE,MAX_DISTANCE_SPAN} from './distance-range.js';
 import {roadDataCost} from './road-data-cost.js';
 import {lanePreferenceMultiplier,driverRoadPenalty,driverTurnPenalty,driverJunctionDiscount,practiceGoalMatch,validateProfile} from './driver-preferences.js';
@@ -57,22 +58,42 @@ function transitionCost(previous,next) {
  const type=turnFromDirections(previous.endDirection,next.startDirection);
  return TURN_COSTS[type]+driverTurnPenalty(type,next.profile,TURN_COSTS[type]);
 }
-function shortest(graph,start,limit,blocked=new Set(),target=null,costLimit=Infinity,previousEdge=null,includeTurns=true,retracedPairs=null) {
- const initial={node:start,meters:0,cost:0,parent:null,edge:null,incoming:previousEdge};
- const labels=new Map([[start,[initial]]]),queue=new Queue();queue.push([0,initial]);
+// Chord distance to the destination nodes' enclosing box is a lower bound
+// on road distance. The cheapest actual cost/metre includes goal discounts.
+export function regionHeuristic(edges,routeRegions=[]) {
+ const xyz=([lng,lat])=>{const a=lat*Math.PI/180,b=lng*Math.PI/180,r=6371008.8;return [r*Math.cos(a)*Math.cos(b),r*Math.cos(a)*Math.sin(b),r*Math.sin(a)];};
+ const positions=new Map(),targets=routeRegions.length>1?routeRegions.slice(1).map(()=>({lower:[Infinity,Infinity,Infinity],upper:[-Infinity,-Infinity,-Infinity],nodes:new Set()})):[{lower:[Infinity,Infinity,Infinity],upper:[-Infinity,-Infinity,-Infinity],nodes:new Set()}];let rate=Infinity;
+ for(const edge of edges){
+  const coordinates=edge.feature.geometry.coordinates;
+  positions.set(edge.from,xyz(coordinates[0]));positions.set(edge.to,xyz(coordinates.at(-1)));
+  rate=Math.min(rate,edge.cost/edge.meters);
+  targets.forEach((target,index)=>{
+   const reached=routeRegions.length>1?pointInRegion(coordinates.at(-1),routeRegions[index+1].geometry):edge.endsInRegion;
+   if(reached){target.nodes.add(edge.to);const point=xyz(coordinates.at(-1));point.forEach((value,i)=>{target.lower[i]=Math.min(target.lower[i],value);target.upper[i]=Math.max(target.upper[i],value);});}
+  });
+ }
+ const cache=new Map();
+ return (node,progress=routeRegions.length>1?1:0)=>{const key=`${node}:${progress}`;if(cache.has(key))return cache.get(key);const targetIndex=routeRegions.length>1?progress-1:0,target=targets[targetIndex];if(progress>=routeRegions.length&&routeRegions.length>1)return {meters:0,cost:0};if(!target||!target.nodes.size)return {meters:Infinity,cost:Infinity};const point=positions.get(node);const meters=target.nodes.has(node)?0:point?Math.hypot(...point.map((value,i)=>Math.max(target.lower[i]-value,0,value-target.upper[i]))):0;const result={meters,cost:meters*Math.max(0,rate)};cache.set(key,result);return result;};
+}
+function shortest(graph,start,limit,blocked=new Set(),target=null,costLimit=Infinity,previousEdge=null,includeTurns=true,retracedPairs=null,estimate=null,progressStart=0,routeRegions=[]) {
+ const initial={node:start,meters:0,cost:0,parent:null,edge:null,incoming:previousEdge,regionProgress:progressStart};
+ const labels=new Map([[start,[initial]]]),queue=new Queue();queue.push([estimate?.(start,progressStart).cost||0,initial]);
  while(queue.items.length){
-  const [,current]=queue.pop();
+  const [priority,current]=queue.pop();
   if(!labels.get(current.node)?.includes(current))continue;
-  if(current.cost>=costLimit)break;
+  if(priority>=costLimit)break;
   if(current.node===target)return {labels,target:current};
   for(const edge of graph.get(current.node)||[]){
    if(blocked.has(edge.to))continue;
    const retracingCost=retracedPairs?.get(edge.to)?.has(edge.from)?edge.meters*RETRACING_COST_PER_METER:0;
-   const next={node:edge.to,meters:current.meters+edge.meters,cost:current.cost+edge.cost+retracingCost+(includeTurns?transitionCost(current.incoming,edge):0),parent:current,edge,incoming:edge,retracingCost};
-   if(next.meters>limit||next.cost>=costLimit)continue;
+   let regionProgress=current.regionProgress;
+   while(regionProgress<routeRegions.length&&pointInRegion(edge.feature.geometry.coordinates.at(-1),routeRegions[regionProgress].geometry))regionProgress++;
+   const next={node:edge.to,meters:current.meters+edge.meters,cost:current.cost+edge.cost+retracingCost+(includeTurns?transitionCost(current.incoming,edge):0),parent:current,edge,incoming:edge,retracingCost,regionProgress};
+   const remaining=estimate?.(next.node,regionProgress)||{meters:0,cost:0};
+   if(next.meters+remaining.meters>limit||next.cost+remaining.cost>=costLimit)continue;
    const all=labels.get(edge.to)||[];
    // Different incoming roads have different future turn costs.
-   const same=label=>!includeTurns||label.incoming?.feature.properties.linkId===edge.feature.properties.linkId;
+   const same=label=>label.regionProgress===regionProgress&&(!includeTurns||label.incoming?.feature.properties.linkId===edge.feature.properties.linkId);
    const existing=all.filter(same),others=all.filter(label=>!same(label));
    // Keep cheaper and shorter alternatives separately: cost is not physical distance.
    if(existing.some(label=>label.cost<=next.cost&&label.meters<=next.meters))continue;
@@ -82,7 +103,7 @@ function shortest(graph,start,limit,blocked=new Set(),target=null,costLimit=Infi
     kept.sort((a,b)=>a.cost-b.cost);kept=kept.slice(0,7);
     if(!kept.includes(shortest))kept.push(shortest);
    }
-   labels.set(edge.to,[...others,...kept]);if(kept.includes(next))queue.push([next.cost,next]);
+   labels.set(edge.to,[...others,...kept]);if(kept.includes(next))queue.push([next.cost+remaining.cost,next]);
   }
  }
  return {labels,target:null};
@@ -93,8 +114,9 @@ function path(label) {
 export const AUTO_START_LIMIT=48;
 export const MAX_START_SNAP_METERS=300;
 export function selectCourseStarts(nodes,center,options={}) {
- const b=options.bounds;
- const visible=nodes.filter(item=>!b||(item.point[0]>=b[0]&&item.point[0]<=b[2]&&item.point[1]>=b[1]&&item.point[1]<=b[3]));
+ const original=options.bounds,desired=options.startBounds;
+ const b=desired&&original?[Math.max(original[0],desired[0]),Math.max(original[1],desired[1]),Math.min(original[2],desired[2]),Math.min(original[3],desired[3])]:desired||original;
+ const visible=nodes.filter(item=>(!b||(item.point[0]>=b[0]&&item.point[0]<=b[2]&&item.point[1]>=b[1]&&item.point[1]<=b[3]))&&pointInRegion(item.point,options.startGeometry));
  if(options.startPoint){
   const nearest=visible.map(item=>({...item,distance:metersBetween(options.startPoint,item.point)})).sort((a,b)=>a.distance-b.distance||a.node.localeCompare(b.node))[0];
   if(!nearest||nearest.distance>MAX_START_SNAP_METERS)throw new Error('지정 위치의 300m 안에 출발할 도로가 없습니다. 도로 가까운 위치를 선택하거나 지도를 이동해주세요.');
@@ -133,11 +155,15 @@ function connectInBand(features,center,range,mode='loop',options={}) {
   const dataCosts=roadDataCost(p,meters),laneCost=meters*laneCostMultiplier(p.lanes);
   const junction=(neighbors.get(p.fNode)?.size||0)>=3;
   const preferenceCost=meters*(lanePreferenceMultiplier(p.lanes,options.preferredLanes)+driverRoadPenalty(p.lanes,options.profile))-laneCost*driverJunctionDiscount(junction,options.profile);
-  const edge={junction,from:p.fNode,to:p.tNode,meters,laneCost,preferenceCost,profile:options.profile,dataCosts,cost:laneCost+preferenceCost+dataCosts.trafficCost+dataCosts.accidentCost,feature,startDirection:direction(g.coordinates,false),endDirection:direction(g.coordinates,true)};
+  const end=g.coordinates.at(-1),endBounds=options.endBounds;
+  const endsInRegion=!endBounds||(end[0]>=endBounds[0]&&end[0]<=endBounds[2]&&end[1]>=endBounds[1]&&end[1]<=endBounds[3]&&pointInRegion(end,options.endGeometry));
+  const edge={endsInRegion,junction,from:p.fNode,to:p.tNode,meters,laneCost,preferenceCost,profile:options.profile,dataCosts,cost:laneCost+preferenceCost+dataCosts.trafficCost+dataCosts.accidentCost,feature,startDirection:direction(g.coordinates,false),endDirection:direction(g.coordinates,true)};
   if(!graph.has(edge.from))graph.set(edge.from,[]);graph.get(edge.from).push(edge);
   if(!reverse.has(edge.to))reverse.set(edge.to,[]);reverse.get(edge.to).push({...edge,to:edge.from});
   if(!startPositions.has(edge.from))startPositions.set(edge.from,g.coordinates[0]);
  }
+ const routeRegions=options.routeRegions?.length>1?options.routeRegions:[];
+ const estimate=mode==='oneway'&&options.endBounds?regionHeuristic([...graph.values()].flat(),routeRegions):null;
  const starts=selectCourseStarts([...graph.keys()].map(node=>({node,point:startPositions.get(node)})),center,options);
  let best=null;const pool=new Map(),collectAll=options.collectAll===true;
  const accept=(edges,startDistance)=>{
@@ -161,7 +187,7 @@ function connectInBand(features,center,range,mode='loop',options={}) {
    if(i){const type=turnFromDirections(edges[i-1].endDirection,edge.startDirection);if(type in practiceCounts)practiceCounts[type]++;}
   });
   const goalMatch=practiceGoalMatch(options.profile,practiceCounts);
-  const course={practiceCounts,goalMatch,startNode:edges[0].from,startSelection:options.startPoint?'manual':'auto',startNodesCompared:starts.length,mode,lengthMeters,cost,costBreakdown,dataCoverage,startDistance,linkIds:edges.map(edge=>edge.feature.properties.linkId),
+  const course={searchAlgorithm:estimate?'astar':'dijkstra',practiceCounts,goalMatch,startNode:edges[0].from,startSelection:options.startPoint?'manual':'auto',startNodesCompared:starts.length,mode,lengthMeters,cost,costBreakdown,dataCoverage,startDistance,linkIds:edges.map(edge=>edge.feature.properties.linkId),
    start:edges[0].feature.geometry.coordinates[0],end:edges.at(-1).feature.geometry.coordinates.at(-1),
    featureCollection:{type:'FeatureCollection',features:edges.map(edge=>edge.feature)}};
   if(collectAll)pool.set(key,course);
@@ -169,10 +195,10 @@ function connectInBand(features,center,range,mode='loop',options={}) {
   return true;
  };
  for(const {node:start,distance:startDistance} of starts){
-  const outward=shortest(graph,start,max);
+  const outward=shortest(graph,start,max,new Set(),null,Infinity,null,true,null,estimate,routeRegions.length?1:0,routeRegions);
   const labels=[...outward.labels.values()].flat();
   if(mode==='oneway'){
-   const candidates=labels.filter(label=>label.meters>=min&&label.meters<=max)
+   const candidates=labels.filter(label=>label.meters>=min&&label.meters<=max&&(routeRegions.length?label.regionProgress===routeRegions.length:label.edge.endsInRegion))
     .sort((a,b)=>a.cost-b.cost||Math.abs(a.meters-target)-Math.abs(b.meters-target)).slice(0,128);
    for(const candidate of candidates){if(!collectAll&&best&&candidate.cost>=best.cost)break;accept(path(candidate),startDistance);}
   }else{
@@ -203,6 +229,9 @@ export function connectCourse(features,center,range,mode='loop',options={}) {
 }
 function validateOptions(center,range,mode,options) {
  if(!['loop','oneway'].includes(mode))throw new Error('경로 형태를 확인해주세요.');
+ for(const key of ['startBounds','endBounds'])if(options[key]&&(!Array.isArray(options[key])||options[key].length!==4||!options[key].every(Number.isFinite)||options[key][0]>=options[key][2]||options[key][1]>=options[key][3]))throw new Error('희망 지역 범위를 확인해주세요.');
+ if(options.endBounds&&mode!=='oneway')throw new Error('도착 지역 지정은 편도 코스에서 사용해주세요.');
+ if(options.routeRegions!==undefined&&(!Array.isArray(options.routeRegions)||options.routeRegions.length>3||options.routeRegions.some(region=>!region?.geometry||!Array.isArray(region.bounds)||region.bounds.length!==4||!region.bounds.every(Number.isFinite))))throw new Error('희망 지역은 최대 3곳까지 선택할 수 있습니다.');
  if(options.bounds&&(!Array.isArray(options.bounds)||options.bounds.length!==4||!options.bounds.every(Number.isFinite)||options.bounds[0]>=options.bounds[2]||options.bounds[1]>=options.bounds[3]))throw new Error('지도 범위를 확인해주세요.');
  if(options.startPoint&&(!Array.isArray(options.startPoint)||options.startPoint.length!==2||!options.startPoint.every(Number.isFinite)||Math.abs(options.startPoint[0])>180||Math.abs(options.startPoint[1])>90))throw new Error('출발 위치를 확인해주세요.');
  if(options.profile)options={...options,profile:validateProfile(options.profile)};
