@@ -1,16 +1,19 @@
-export const SAVED_COURSES_KEY='beginner-driving.saved-courses.v1';
+// A separate namespace preserves older browser records without mixing road graphs.
+export const SAVED_COURSES_KEY='beginner-driving.saved-courses.level55.v2';
 export function readSavedCourses(storage) {
  const raw=storage.getItem(SAVED_COURSES_KEY);if(!raw)return [];
  let items;try{items=JSON.parse(raw);}catch{throw new Error('저장된 코스를 읽지 못했습니다. 기존 자료는 그대로 유지합니다.');}
  if(!Array.isArray(items)||items.some(item=>!item.id||!Array.isArray(item.coordinates)||item.coordinates.length<2||item.coordinates.some(p=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite))||!Number.isFinite(item.cost)))throw new Error('저장된 코스 형식을 확인할 수 없습니다.');
+ if(items.some(item=>item.identifierSystem!=='level5.5'))throw new Error('다른 도로망으로 저장된 코스는 현재 코스와 함께 사용할 수 없습니다.');
  return items;
 }
 export function courseToSavedRoute(course,{name,difficulty='보통',regionName='',destinationName='',sections,profile={goals:[]}}={}) {
+ if(course.identifierSystem&&course.identifierSystem!=='level5.5')throw new Error('현재 도로망으로 계산한 코스만 저장할 수 있습니다.');
  let coordinates=course.coordinates;
  if(!coordinates){coordinates=[];for(const f of course.featureCollection.features)for(const [lng,lat] of f.geometry.coordinates){const last=coordinates.at(-1);if(!last||last[0]!==lat||last[1]!==lng)coordinates.push([lat,lng]);}}
  const lengthMeters=course.lengthMeters??course.distance*1000;
  const mode=course.mode||'loop';
- return {id:course.id||`saved-${crypto.randomUUID()}`,name:name||course.name||`${regionName||'선택한 지역'} ${mode==='loop'?'순환':'이동'} 코스`,difficulty:course.difficulty||difficulty,mode,cost:course.cost,lengthMeters,distance:Number((lengthMeters/1000).toFixed(2)),duration:Math.round(lengthMeters/1000/25*60),coordinates,linkIds:course.linkIds||[],startLocation:course.startLocation||`시작 노드 ${course.startNode}`,sections:course.sections||sections||[regionName||'출발 지역',destinationName||'주변 도로'],metrics:{},score:null,real:true,reason:'저장 당시 도로 연결과 조건을 유지한 코스입니다. 실제 통행 제한과 실시간 교통은 반영하지 않았습니다.',regionName,destinationName,goals:[...profile.goals],savedAt:new Date().toISOString(),rank:1};
+ return {id:course.id||`saved-${crypto.randomUUID()}`,identifierSystem:'level5.5',observationYear:2024,name:name||course.name||`${regionName||'선택한 지역'} ${mode==='loop'?'순환':'이동'} 코스`,difficulty:course.difficulty||difficulty,mode,cost:course.cost,...(course.costBreakdown?{costBreakdown:course.costBreakdown}:{}),...(course.dataCoverage?{dataCoverage:course.dataCoverage}:{}),lengthMeters,distance:Number((lengthMeters/1000).toFixed(2)),duration:Math.round(lengthMeters/1000/25*60),coordinates,linkIds:course.linkIds||[],startLocation:course.startLocation||`시작 노드 ${course.startNode}`,sections:course.sections||sections||[regionName||'출발 지역',destinationName||'주변 도로'],metrics:{},score:null,real:true,reason:'Level 5.5 도로망과 2024년 추정교통량으로 계산한 저장 코스입니다. 실제 통행 제한과 실시간 교통은 반영하지 않았습니다.',regionName,destinationName,goals:[...profile.goals],savedAt:new Date().toISOString(),rank:1};
 }
 export function saveCourse(storage,route) {
  const items=readSavedCourses(storage);

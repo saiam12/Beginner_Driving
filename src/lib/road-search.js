@@ -1,5 +1,7 @@
 import {regions} from '../data';
+import {applyRoadAccidents} from './road-accidents.js';
 let manifest;
+let accidentData;
 const searchCache=new Map(),geometryCache=new Map();
 const normalize=value=>value.trim().replace(/\s/g,'').toLocaleLowerCase('ko');
 function remember(cache,key,value,limit){cache.delete(key);cache.set(key,value);if(cache.size>limit)cache.delete(cache.keys().next().value);return value;}
@@ -13,10 +15,16 @@ async function readJSON(path,signal,lines=false){
  }
  signal?.throwIfAborted();
  const text=new TextDecoder().decode(bytes);
- try{return lines?text.trim().split('\n').filter(Boolean).map(line=>JSON.parse(line)):JSON.parse(text);}
- catch{throw new Error('도로 데이터 형식을 확인할 수 없습니다. 다시 검색해주세요.');}
+ try{
+  const result=lines?text.trim().split('\n').filter(Boolean).map(line=>JSON.parse(line)):JSON.parse(text);
+  if(!lines||path.startsWith('lanes-its/'))return result;
+  if(!accidentData)accidentData=readJSON('accidents-2024-daegu.json').catch(error=>{accidentData=null;throw error;});
+  const observations=await accidentData;signal?.throwIfAborted();
+  return path.startsWith('geometry/')?result.map(group=>({...group,features:applyRoadAccidents(group.features,observations)})):applyRoadAccidents(result,observations);
+ }
+ catch(error){if(error.name==='AbortError')throw error;throw new Error('도로 데이터 형식을 확인할 수 없습니다. 다시 검색해주세요.');}
 }
-async function getManifest(signal){if(!manifest)manifest=await readJSON('manifest.json.gz',signal);return manifest;}
+async function getManifest(signal){if(!manifest){const data=await readJSON('manifest.json.gz',signal);if(data.identifierSystem!=='level5.5')throw new Error('도로 데이터가 갱신되었습니다. 페이지를 새로고침해주세요.');manifest=data;}return manifest;}
 export {readJSON as readRoadJSON};
 export function matchRoadNames(roads,query){
  const q=normalize(query);if(!q)return [];
@@ -46,18 +54,20 @@ export async function loadRoadGroup(metadata,{signal}={}){
  const groups=geometryCache.get(shard)??remember(geometryCache,shard,await readJSON(`geometry/${shard}.jsonl.gz`,signal,true),2);
  signal?.throwIfAborted();const group=groups.find(group=>group.roadGroupId===metadata.roadGroupId);
  if(!group||group.features.length!==metadata.linkCount)throw new Error('선택한 도로 데이터를 찾을 수 없습니다. 다시 검색해주세요.');
- return {...metadata,featureCollection:{type:'FeatureCollection',features:group.features},linkIds:group.features.map(f=>f.properties.linkId)};
+ const features=group.features;
+ return {...metadata,featureCollection:{type:'FeatureCollection',features},linkIds:features.map(f=>f.properties.linkId)};
 }
 export function roadCoordinates(road){return road.featureCollection.features.flatMap(f=>(f.geometry.type==='MultiLineString'?f.geometry.coordinates:[f.geometry.coordinates]).flatMap(line=>line.map(([lng,lat])=>[lat,lng])));}
 export const laneLabel=road=>road.laneMin==null?'차로 정보 없음':road.laneMin===road.laneMax?`${road.laneMin}차로`:`${road.laneMin}~${road.laneMax}차로`;
 export const formatRegionName=name=>name.replace(/시(?=[^\s]+구$)/g,'시 ');
 export const regionLabel=road=>road.regions.length?road.regions.map(formatRegionName).join(' · '):`지역 미확인 (위도 ${road.centerLat.toFixed(4)}, 경도 ${road.centerLng.toFixed(4)})`;
 export const lengthLabel=road=>road.lengthMeters>=1000?`${(road.lengthMeters/1000).toFixed(2)} km`:`${Math.round(road.lengthMeters)} m`;
-export function linkTooltip(p){return `${p.roadName}\n${p.regions.map(formatRegionName).join(' · ')||'지역 미확인'}\n${p.lanes==null?'차로 정보 없음':p.lanes+'차로'}\nLINK_ID: ${p.linkId}`;}
+export const accidentLabel=p=>p.accidentCount==null?'사고 자료 없음':`2024년 사고 ${p.accidentCount}건 · ${(p.accidentCount/(p.accidentLengthMeters/1000)).toFixed(1)}건/km${(p.accidentCount>=12||(p.accidentCount>=3&&p.accidentCount/(p.accidentLengthMeters/1000)>=30))?' · 경로 제외':''} (${p.accidentZeroAssumed?'자료 없음 · 0건 처리':'15m 공간 매칭'})`;
+export function linkTooltip(p){return `${p.roadName}\n${p.regions.map(formatRegionName).join(' · ')||'지역 미확인'}\n${p.lanes==null?'차로 정보 없음':p.lanes+'차로'}\nLevel 5.5 LINK ID: ${p.linkId}\n${accidentLabel(p)}`;}
 
 export async function loadCourseRegions({signal}={}) {
- const [index,boundaries]=await Promise.all([getManifest(signal),readJSON('areas/index.json',signal)]);
- return (index.areas||[]).map(area=>({...area,id:area.name,boundaryFile:boundaries[area.name],name:formatRegionName(area.name),kind:'area'})).sort((a,b)=>Number(b.name.startsWith('서울'))-Number(a.name.startsWith('서울'))||a.name.localeCompare(b.name,'ko'));
+ const [index,boundaries,adjacency]=await Promise.all([getManifest(signal),readJSON('areas/index.json',signal),readJSON('areas/adjacency.json',signal)]);
+ return (index.areas||[]).map(area=>({...area,id:area.name,boundaryFile:boundaries[area.name],adjacentIds:adjacency[area.name]||[],name:formatRegionName(area.name),kind:'area'})).sort((a,b)=>Number(b.name.startsWith('서울'))-Number(a.name.startsWith('서울'))||a.name.localeCompare(b.name,'ko'));
 }
 
 export async function loadCourseRegionBoundary(area,{signal}={}) {

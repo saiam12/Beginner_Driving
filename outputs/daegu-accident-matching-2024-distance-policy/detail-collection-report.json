@@ -1,0 +1,39 @@
+{
+  "held_accidents": 627,
+  "unique_accident_ids": 627,
+  "missing_by_field": {
+    "발생년월": 0,
+    "주야": 0,
+    "사고유형": 0,
+    "사고유형_세부": 0,
+    "사고심각도": 0,
+    "사망자수": 0,
+    "중상자수": 0,
+    "경상자수": 0,
+    "부상신고자수": 0,
+    "가해운전자_차종": 0,
+    "가해운전자_성별": 0,
+    "가해운전자_연령대": 0,
+    "가해운전자_상해정도": 0,
+    "피해운전자_차종": 16,
+    "피해운전자_성별": 16,
+    "피해운전자_연령대": 16,
+    "피해운전자_상해정도": 16,
+    "기상상태": 0,
+    "노면상태": 0,
+    "도로형태": 0,
+    "법규위반": 0,
+    "사고장소_원문": 181,
+    "도로명_원문": 148
+  },
+  "source_sha256": "61b49416838bac0810cd3478610c2767f12de736be26c6460308352cf60f0475",
+  "method": "Exact join by original TAAS acdnt_no; display serial_no independently checked; no location join",
+  "screenshot_example": {
+    "taas_display_id": "2024099341",
+    "accident_id": "2024070900100014",
+    "status": "mapped",
+    "lev5_5_link_id": "1050837",
+    "distance_m": "1.64615"
+  },
+  "mapping_decisions_changed": false
+}

@@ -1,6 +1,9 @@
+// The app's road identifiers are official Level 5.5 k_link_id values.
 export type RoadLinkId = string;
 export interface RoadLink {
  linkId: RoadLinkId;
+ lev5_5_link_id: RoadLinkId;
+ identifierSystem: 'level5.5';
  roadName: string;
  lanes: number | null;
  roadRank: string | null;
@@ -22,6 +25,9 @@ export interface RoadLink {
  trafficPerLaneReference?: number; // Comparable vehicles/hour/lane scale, e.g. cohort P95.
  trafficReferencePeriod?: string;
  accidentPeriod?: string;
+ accidentLengthMeters?: number; // Full observed link length; retained when a route splits it.
+ accidentSource?: string;
+ accidentMatchMethod?: string;
  accidentsPerKmReference?: number; // Comparable accidents/km over the same period.
  accidentReferencePeriod?: string;
  floatingPopulation: number | null;

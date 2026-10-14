@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {resolve,sep} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=resolve('public');
+globalThis.fetch=async url=>{
+ const file=resolve(root,'.'+url);assert(file.startsWith(root+sep));
+ return new Response(await readFile(file));
+};
+const {loadLaneRoads}=await import(pathToFileURL(resolve('.local/accident-tests/accident-loaders.mjs')));
+const bounds=[126.885,37.535,126.975,37.585];
+const {features}=await loadLaneRoads(bounds,null,{regional:true});
+let response;
+globalThis.self={postMessage:data=>{response=data;}};
+await import('../src/lib/connected-course.worker.js');
+self.onmessage({data:{features,center:[126.93,37.56],range:{min:5,max:15},mode:'loop',options:{bounds,preferredLanes:[],profile:{goals:[]}}}});
+assert(!response.error,response.error);
+assert(response.courses.length>0);
+assert(response.courses.every(c=>c.costBreakdown.accidents===0));
+assert(response.courseSelection.adoptedIndices.length>0);
+console.log(`PASS: worker handles ${features.length} Seoul roads at 5–15km and returns ${response.courses.length} candidates with zero accident cost`);

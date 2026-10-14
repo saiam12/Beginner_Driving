@@ -7,15 +7,19 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:roads": "python scripts/test-preprocess-road-links.py && python scripts/verify-road-data.py && node scripts/test-road-search.mjs",
+    "test:roads": "python -B scripts/test-preprocess-road-links.py && python -B scripts/verify-level55-data.py && node scripts/test-road-search.mjs",
     "test:lanes": "node scripts/test-lane-roads.mjs",
+    "test:its-display": "node scripts/test-its-lane-display.mjs",
     "test:connected": "node scripts/test-connected-course.mjs",
     "test:difficulty": "node scripts/test-course-difficulty.mjs",
     "test:ai": "node scripts/test-course-recommendation.mjs",
     "test:pool": "node scripts/test-gemini-key-pool.mjs",
     "test:ai:live": "node scripts/verify-gemini-live.mjs",
     "test:goals": "node scripts/test-practice-goals.mjs",
-    "test:regions": "node scripts/test-region-saved-courses.mjs"
+    "test:regions": "node scripts/test-region-saved-courses.mjs",
+    "test:viewt": "python -B scripts/test-level55-traffic.py",
+    "test:viewt:data": "node scripts/test-level55-data.mjs",
+    "test:level55": "python -B scripts/test-level55-traffic.py && python -B scripts/verify-level55-data.py && node scripts/test-level55-data.mjs && node scripts/test-seoul-courses.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

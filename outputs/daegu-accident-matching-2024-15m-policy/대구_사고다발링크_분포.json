@@ -1,0 +1,17 @@
+{
+  "daegu_source_link_records": 3743,
+  "deleted_records": 0,
+  "daegu_unique_links": 3743,
+  "daegu_links_with_mapped_accidents": 1851,
+  "daegu_mapped_accidents": 6395,
+  "neighbor_links_with_mapped_accidents": 23,
+  "neighbor_mapped_accidents": 45,
+  "daegu_ge10_links": 131,
+  "daegu_ge10_pct_all_links": 3.499866417312316,
+  "daegu_ge10_pct_observed_links": 7.077255537547272,
+  "daegu_ge10_mapped_accidents": 1721,
+  "daegu_ge20_links": 7,
+  "daegu_1to9_links": 1720,
+  "daegu_10to19_links": 124,
+  "daegu_no_mapped_accidents_links": 1892
+}

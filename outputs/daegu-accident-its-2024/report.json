@@ -1,0 +1,33 @@
+{
+  "sourceAccidents": 10222,
+  "statuses": {
+    "excluded": 1912,
+    "mapped": 8310
+  },
+  "reasons": {
+    "explicit_user_exclusion": 2,
+    "nearest_within_15m": 8310,
+    "no_its_link_within_15m": 1909,
+    "coordinate_outside_daegu_region": 1
+  },
+  "matchedLinks": 5450,
+  "coveredLinks": 44250,
+  "candidateLinks": 82344,
+  "mappingDistanceMeters": 15,
+  "equalDistanceTies": 6,
+  "sourceYear": 2024,
+  "roadSourceDate": "2026-09-14",
+  "method": "nearest-its-link-within-15m",
+  "metricCrs": "EPSG:5179",
+  "sourceHashes": {
+    "accidents": "61b49416838bac0810cd3478610c2767f12de736be26c6460308352cf60f0475",
+    "itsManifest": "aebde5775b188d8e8d895402ca3142cc201a9885f911629a423d2dd93f58c755",
+    "boundaries": "c01ef44a0eb00978662ba7a6240ccb1da287fb52abd85104a1758969d391132f"
+  },
+  "directionConfirmed": false,
+  "officialLinkStatistics": false,
+  "retainedExplicitExclusions": [
+    "2024010100100012",
+    "2024010200100265"
+  ]
+}

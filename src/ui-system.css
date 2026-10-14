@@ -30,8 +30,12 @@ summary:hover { color: var(--color-primary); }
 .guide-trigger { border-radius: 7px; padding-inline: 8px; }
 .lane-filter-buttons { border-radius: 7px; background: var(--surface-subtle); }
 .lane-filter-buttons button:not(:disabled):hover { background: var(--color-selected); color: var(--color-primary); }
-.lane-filter-buttons button[aria-pressed="true"]:hover { background: var(--color-primary); color: white; }
+.lane-filter-buttons button { border-bottom: 4px solid var(--lane-color); }
+.lane-filter-buttons button[aria-pressed="true"], .lane-filter-buttons button[aria-pressed="true"]:hover { background: var(--lane-color); color: var(--lane-text); outline: 1px solid var(--color-primary); }
 .lane-filter-clear:not(:disabled):hover { text-decoration: underline; }
+.lane-display-status { position:absolute; z-index:450; left:24px; bottom:72px; display:flex; flex-direction:column; gap:2px; max-width:220px; padding:8px 12px; background:#fffffff2; border:1px solid var(--color-border); border-radius:7px; font-size:12px; color:var(--color-muted); }
+.lane-display-status strong { color:var(--color-text); font-size:12px; }
+.lane-display-status button { color:var(--color-primary); text-align:left; }
 .tabs button { font-size: 14px; color: var(--color-muted); }
 .tabs button:hover { color: var(--color-primary); background: var(--surface-subtle); }
 .tabs .active { color: var(--color-primary); border-color: var(--color-primary); }
@@ -114,10 +118,12 @@ summary:hover { color: var(--color-primary); }
 .lane-road-status .lane-road-toggle { width: 32px; min-height: 32px; color: var(--color-muted); background: var(--surface-subtle); position: sticky; top: 0; }
 .lane-road-toggle:hover { border-color: var(--color-primary); }
 .connected-course-control { margin-top: 12px; padding-top: 12px; }
-.course-start-control strong { font-size: 13px; margin-bottom: 8px; }
+.course-start-control { margin-bottom: 12px; }
+.course-start-control strong, .course-field-label { display: block; font-size: 13px; margin-bottom: 8px; }
+.course-start-control small { display: block; min-height: 20px; }
 .connected-course-mode { gap: 6px; }
 .connected-course-mode button { padding-inline: 10px; }
-.course-start-control .connected-course-mode { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); }
+.course-start-control .connected-course-mode { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
 .connected-course-actions { gap: 10px; margin-top: 12px; }
 .lane-road-status .connect-button {
   width: 100%; min-height: 42px; font-size: 14px; font-weight: 600;
@@ -137,7 +143,10 @@ summary:hover { color: var(--color-primary); }
 .ai-course-feedback { max-width: none; min-height: 0; font-size: 13px; }
 .ai-course-feedback:has(strong), .ai-course-feedback:has(p) { margin-top: 12px; padding: 12px; background: var(--surface-subtle); border-radius: 7px; }
 .connected-course-result { padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--color-border); font-size: 13px; font-weight: 600; }
-.connected-course-result button { display: block; margin: 4px 0 0; font-size: 12px; font-weight: 400; }
+.connected-course-result p { margin: 0; }
+.course-result-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+.connected-course-result button { min-height: 40px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); font-size: 13px; font-weight: 500; color: var(--color-text); }
+.connected-course-result button:hover { background: var(--surface-subtle); }
 .course-cost-debug { margin-top: 12px; padding-top: 10px; }
 .course-cost-debug summary { font-size: 12px; color: var(--color-muted); line-height: 1.6; }
 .lane-road-status .course-cost-list button { color: var(--color-text); }
@@ -184,25 +193,89 @@ summary:hover { color: var(--color-primary); }
 .map-selected { cursor: pointer; }
 
 .region-picker { padding: 24px; }
-.region-picker h2 { margin: 10px 0; }
-.region-picker .subtext { color: var(--color-muted); line-height: 1.7; }
+.region-picker h2 { margin: 10px 0; font-size: 22px; letter-spacing: -.6px; }
+.region-picker h2 small { display: inline-block; vertical-align: middle; padding: 2px 8px; border-radius: var(--radius-control); font-size: 12px; color: var(--color-muted); background: var(--surface-subtle); }
+.region-picker .subtext { font-size: 14px; color: var(--color-muted); line-height: 1.7; }
 .region-fields { display: grid; gap: 8px; margin: 20px 0 14px; }
 .region-fields button, .region-options button, .region-provinces button { border: 1px solid var(--color-border); border-radius: 7px; padding: 12px; text-align: left; }
 .region-fields strong { display: block; margin-top: 5px; }
 .region-fields button[aria-pressed="true"], .region-options button[aria-pressed="true"], .region-provinces button[aria-pressed="true"] { color: var(--color-primary); border-color: var(--color-primary); background: var(--color-selected); }
 .region-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:12px 0; }
-.region-options button, .region-provinces button { text-align:center; min-height:40px; overflow-wrap:anywhere; }
+.region-options button, .region-provinces button { text-align:center; min-height:44px; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
 .region-provinces { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
 .region-provinces button { padding:8px 4px; }
 .region-step-label { font-size:13px; margin:20px 0 10px; }
 .region-step-label span { color:var(--color-muted); font-weight:400; margin-left:6px; }
 .saved-course-list { display:grid; gap:12px; margin-top:20px; }
 .saved-course-list article { border:1px solid var(--color-border); border-radius:7px; padding:12px; }
-.saved-course-open { display:grid; gap:8px; width:100%; text-align:left; }
+.saved-course-open { display:grid; gap:8px; width:100%; padding:16px; text-align:left; }
+.saved-course-open strong { font-size:15px; line-height:1.6; }
+.saved-course-open span { font-size:13px; }
+.saved-course-open small { font-size:12px; line-height:1.65; }
+.saved-course-open:hover { background:var(--surface-subtle); }
+.saved-course-list .back-link { width:100%; min-height:44px; margin:0; padding:10px 16px; border-top:1px solid var(--color-border); font-size:13px; text-align:left; color:var(--color-muted); }
+.saved-course-list .back-link:hover { background:var(--surface-subtle); color:var(--color-text); }
 .saved-course-open span, .saved-course-open small { color:var(--color-muted); }
 .tabs button { min-width:0; gap:5px; }
 .selected-region-list { display:grid; gap:6px; margin:16px 0; }
-.selected-region-list button { display:flex; align-items:center; gap:8px; width:100%; border:1px solid var(--color-border); border-radius:7px; padding:8px 10px; text-align:left; }
+.selected-region-list button { display:flex; align-items:center; gap:8px; width:100%; border:1px solid var(--color-border); border-radius:7px; padding:8px 10px; min-height:44px; font-size:13px; color:var(--color-primary); background:var(--surface-selected); border-color:#b7cdfb; text-align:left; }
 .selected-region-list button span { color:var(--color-primary); font-size:12px; font-weight:700; }
 .selected-region-list button b { margin-left:auto; color:var(--color-muted); font-size:18px; }
-.region-order { display:inline-grid; place-items:center; flex:0 0 22px; width:22px; height:22px; border-radius:50%; color:#fff; background:var(--color-primary); font-size:12px; }
+
+/* Region, saved, and map controls share the same interaction states. */
+.region-options button:not(:disabled):hover, .region-provinces button:not(:disabled):hover { border-color: var(--color-primary); background: var(--surface-selected); }
+.region-options button:disabled, .region-provinces button:disabled { color: #8b96a5; background: var(--surface-subtle); border-color: #e9edf2; opacity: 1; }
+.selected-region-list button:not(:disabled):hover { border-color: var(--color-primary); }
+.saved-course-empty { padding: 20px 16px; margin-top: 20px; background: var(--surface-subtle); border: 1px dashed var(--color-border); border-radius: var(--radius-panel); }
+.saved-course-empty strong { font-size: 14px; }
+.saved-course-empty p { margin: 8px 0 0; font-size: 13px; color: var(--color-muted); line-height: 1.7; }
+.route-card-actions { display: flex; border-top: 1px solid var(--color-border); }
+.route-card-actions .detail-link { flex: 1; min-height: 44px; margin: 0; border-top: 0; padding: 10px 12px; font-size: 13px; }
+.route-card-actions .detail-link + .detail-link { border-left: 1px solid var(--color-border); }
+.course-region-summary { padding: 12px; margin: 0 0 16px; border-radius: var(--radius-control); background: var(--surface-subtle); }
+.course-region-summary strong { display: block; font-size: 13px; margin-bottom: 8px; }
+.course-region-summary>div { display: flex; flex-wrap: wrap; gap: 6px; }
+.course-region-summary span { padding: 3px 7px; font-size: 12px; color: var(--color-primary); background: var(--surface-selected); border-radius: 5px; }
+@media (max-width: 900px) { .region-picker { padding: 20px; } }
+
+.map-selected { text-align: left; }
+.map-selected-arrow { display: grid; place-items: center; margin-left: auto; color: var(--color-muted); }
+
+/* Compact selected-course summary keeps the map visible and opens full details. */
+.map-selected.compact-course-summary { width:280px; min-width:0; max-width:calc(100% - 32px); padding:8px 12px; gap:8px; min-height:52px; border-radius:10px; }
+.compact-course-summary .selected-icon, .compact-course-summary small, .compact-course-summary p span, .compact-course-summary p i:last-of-type { display:none; }
+.compact-course-summary>div { min-width:0; flex:1; }
+.compact-course-summary strong { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:18px; }
+.compact-course-summary p { margin:3px 0 0; font-size:11px; line-height:16px; }
+.compact-course-summary .map-selected-arrow { flex-shrink:0; }
+
+.road-accident-dot { display:grid; place-items:center; width:var(--accident-size,13.333333px); height:var(--accident-size,13.333333px); padding:0; border:2px solid white; color:white; font-size:10px; font-weight:700; line-height:1; border-radius:50%; background:#ea580c; box-shadow:0 0 0 1px #9a3412,0 2px 5px #0003; cursor:pointer; }
+.road-accident-dot:focus-visible { outline:3px solid #2563eb; outline-offset:3px; }
+.road-accident-summary { position:absolute; z-index:500; bottom:142px; left:24px; max-width:calc(100% - 48px); display:flex; align-items:center; gap:12px; padding:10px 12px; background:white; border:1px solid var(--color-border); border-radius:10px; box-shadow:0 4px 16px #0001; font-size:12px; }
+.road-accident-summary p { margin:4px 0 0; color:var(--color-muted); font-size:11px; }
+.road-accident-summary button { flex-shrink:0; width:32px; height:32px; padding:0; border:0; border-radius:6px; background:var(--surface-hover,#f3f4f6); font-size:22px; cursor:pointer; }
+
+.accident-toggle { display:flex; align-items:center; justify-content:center; gap:6px; flex-shrink:0; min-height:40px; padding:8px 10px; border:1px solid var(--color-border); border-radius:7px; background:white; color:var(--color-muted); font-size:12px; white-space:nowrap; cursor:pointer; }
+.accident-toggle span { width:8px; height:8px; border-radius:50%; background:#ea580c; }
+.accident-toggle[aria-pressed="true"] { background:#fff7ed; border-color:#ea580c; color:#9a3412; }
+.accident-toggle:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; }
+
+/* Reuse point overlays across toggles; hide their hit targets immediately. */
+.accidents-hidden .road-accident-dot, .accidents-hidden .road-accident-marker, .accidents-hidden div:has(> .road-accident-dot) { display:none !important; }
+
+.accident-cluster-tooltip { max-height:240px; max-width:360px; overflow:auto; overscroll-behavior:contain; }
+
+.lane-color-legend { position:absolute; z-index:500; right:24px; bottom:28px; width:132px; padding:12px; border:1px solid var(--color-border); border-radius:10px; background:#fffffff2; box-shadow:0 3px 12px #0001; pointer-events:none; }
+.lane-color-legend strong { display:block; font-size:12px; line-height:18px; }
+.lane-color-legend small { display:block; margin-top:2px; color:var(--color-muted); font-size:10px; line-height:15px; }
+.lane-color-legend ul { list-style:none; margin:8px 0 0; padding:0; display:grid; gap:6px; }
+.lane-color-legend li { display:flex; align-items:center; gap:9px; font-size:11px; line-height:16px; }
+.lane-color-legend i { display:block; width:28px; height:4px; flex-shrink:0; border-radius:2px; }
+@media (max-width:900px) { .lane-color-legend { right:16px; bottom:28px; width:120px; padding:10px; } }
+
+.course-summary-controls { gap:4px !important; }
+.course-summary-detail { display:flex; align-items:center; gap:6px; flex:1; min-width:0; padding:0; text-align:left; }
+.course-summary-detail>div { min-width:0; flex:1; }
+.course-summary-detail>svg { flex-shrink:0; color:var(--color-muted); }
+.course-summary-minimize { display:grid; place-items:center; width:30px; height:32px; flex-shrink:0; border-radius:6px; background:var(--surface-hover,#f3f4f6); padding:0; }
+.map-selected.course-summary-restore { width:auto; min-width:0; min-height:36px; padding:8px 12px; gap:6px; border-radius:8px; font-size:12px; }

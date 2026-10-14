@@ -32,3 +32,8 @@ assert.equal(sparse.adoptedIndices.length,6);
 const boundaries=classifyCourseCandidates([0,100,200,300].map((cost,i)=>course(cost,[`boundary-${i}`])),{difficultyBased:true});
 assert.deepEqual(Object.values(boundaries.difficultyByIndex),['쉬움','보통','어려움','어려움']);
 console.log('PASS: cost min/mid/max bands, four per difficulty, six balanced recommendations, cross-group diversity, duplicate suppression, equal costs/empty pool and boundaries');
+
+const goals=[course(100,['few']),course(110,['many']),course(200,['other'])];
+for(const [i,c] of goals.entries()){c.goalMatch={count:1,matched:['left']};c.practiceCounts={left:i===1?7:1};}
+assert.equal(classifyCourseCandidates(goals,{difficultyBased:true}).byDifficulty['쉬움'][0],1);
+console.log('PASS: seven selected left turns rank before one within the same difficulty');

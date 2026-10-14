@@ -58,7 +58,8 @@ function difficultySelection(courses,eligible,measured) {
   const level=span===0||cost<costRange.easyUpper?'쉬움':cost>=costRange.hardLower?'어려움':'보통';
   difficultyByIndex[index]=level;queues[level].push(index);
  }
- const priority=(a,b)=>(courses[b].goalMatch?.count||0)-(courses[a].goalMatch?.count||0);
+ const turnPractice=c=>(c.goalMatch?.matched||[]).filter(goal=>['left','right','uturn'].includes(goal)).reduce((sum,goal)=>sum+(c.practiceCounts?.[goal]||0),0);
+ const priority=(a,b)=>(courses[b].goalMatch?.count||0)-(courses[a].goalMatch?.count||0)||turnPractice(courses[b])-turnPractice(courses[a]);
  const targets={'쉬움':min,'보통':middle,'어려움':max};
  const compatible=(index,chosen)=>chosen.every(other=>overlap(measured[index],measured[other])+1e-12<ADOPTED_COURSE_OVERLAP_THRESHOLD);
  for(const level of COURSE_DIFFICULTIES){

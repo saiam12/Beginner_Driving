@@ -1,0 +1,13 @@
+{
+  "source_accidents": 10222,
+  "statuses": {
+    "excluded": 3782,
+    "mapped": 6440
+  },
+  "held": 0,
+  "max_mapping_distance_m": 15,
+  "links": 1874,
+  "corridors": 1311,
+  "retained_explicit_user_exclusions": 2,
+  "method": "Nearest-link inference, not official link-level crash statistics"
+}

@@ -1,0 +1,11 @@
+{
+  "year": 2024,
+  "source_accidents": 10222,
+  "mapped_accidents": 6440,
+  "excluded_accidents": 3782,
+  "links_with_mapped_accidents": 1874,
+  "link_count_sum": 6440,
+  "duplicate_accident_ids": 0,
+  "mapping_distance_limit_m": 15,
+  "verification": "passed"
+}

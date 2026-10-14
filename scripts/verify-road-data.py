@@ -55,4 +55,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit('Use scripts/verify-level55-data.py for the current Level 5.5 dataset.')

@@ -1,10 +1,11 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
+import CourseLocationControl from './CourseLocationControl';
 import {COURSE_OVERLAP_THRESHOLD} from '../../lib/course-overlap';
 import {DEFAULT_DRIVER_PROFILE} from '../../lib/driver-preferences';
 import {summarizeCourse,requestCourseRecommendation} from '../../lib/course-recommendation';
-export default function ConnectedCourseControl({features,viewport,range,selection,difficulty='전체',profile=DEFAULT_DRIVER_PROFILE,ready,onCourse,onCandidates,selectedCourse,startPoint,pickingStart,onPickStart,onClearStart,preferredArea,destinationArea,routeAreas=[],onSaveCourse}) {
+export default function ConnectedCourseControl({features,viewport,range,selection,difficulty='전체',profile=DEFAULT_DRIVER_PROFILE,ready,onCourse,onCandidates,selectedCourse,startPoint,pickingStart,onPickStart,onClearStart,endPoint,pickingEnd,onPickEnd,onClearEnd,preferredArea,destinationArea,routeAreas=[],onSaveCourse}) {
  const [chosenMode,setMode]=useState('loop'),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const mode=destinationArea?'oneway':chosenMode;
+ const mode=endPoint?'oneway':chosenMode;
  const [courses,setCourses]=useState([]);
  const selectedIndex=courses.indexOf(selectedCourse);
  const [ai,setAi]=useState(null),[aiBusy,setAiBusy]=useState(false),[aiError,setAiError]=useState('');
@@ -20,13 +21,13 @@ export default function ConnectedCourseControl({features,viewport,range,selectio
  const aiIdFor=index=>{const position=shortlistedIndices.indexOf(index);return position<0?null:`candidate_${position+1}`;};
  const formatCost=value=>Math.round(value).toLocaleString('ko-KR');
  const worker=useRef(null),aiRequest=useRef(null);
- const selectionKey=selection.join(','),profileKey=JSON.stringify(profile),startKey=startPoint?.join(',')??'';
+ const selectionKey=selection.join(','),profileKey=JSON.stringify(profile),startKey=startPoint?.join(',')??'',endKey=endPoint?.join(',')??'';
  const cancelAI=()=>{aiRequest.current?.abort();aiRequest.current=null;setAiBusy(false);setAi(null);setAiError('');};
  useEffect(()=>{cancelAI();if(courses.length)onCourse(courses[shortlistedIndices[0]]??null);},[courseSelection,difficulty,adoptCount,onCourse]);
  useEffect(()=>{
   worker.current?.terminate();worker.current=null;setBusy(false);setError('');setCourses([]);onCourse(null);cancelAI();
   return()=>{worker.current?.terminate();worker.current=null;aiRequest.current?.abort();aiRequest.current=null;onCourse(null);};
- },[range.min,range.max,mode,selectionKey,profileKey,startKey,preferredArea,destinationArea,routeAreas.map(area=>area.id).join('|'),onCourse]);
+ },[range.min,range.max,mode,selectionKey,profileKey,startKey,endKey,preferredArea,destinationArea,routeAreas.map(area=>area.id).join('|'),onCourse]);
  const connect=()=>{
   if(busy||!ready||!viewport||!features.length)return;
   worker.current?.terminate();setError('');setBusy(true);cancelAI();
@@ -38,8 +39,8 @@ export default function ConnectedCourseControl({features,viewport,range,selectio
    if(data.error){setError(data.error);return;}
    setCourses(data.courses);setCourseSelection(data.courseSelection);
   };
-  instance.onerror=()=>{if(worker.current!==instance)return;instance.terminate();worker.current=null;setBusy(false);setError('경로 계산에 실패했습니다. 다시 시도해주세요.');};
-  instance.postMessage({features,center:[(b[0]+b[2])/2,(b[1]+b[3])/2],range,mode,options:{preferredLanes:selection,profile,bounds:b,startPoint,startBounds:preferredArea?.bounds,endBounds:destinationArea?.bounds,startGeometry:preferredArea?.geometry,endGeometry:destinationArea?.geometry,routeRegions:routeAreas.length>1&&routeAreas.every(area=>area.geometry)?routeAreas.map(area=>({bounds:area.bounds,geometry:area.geometry})):[]}});
+  instance.onerror=event=>{if(worker.current!==instance)return;console.error('경로 계산 작업 오류',event.message,event.filename,event.lineno);instance.terminate();worker.current=null;setBusy(false);setError('경로 계산 작업을 실행하지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.');};
+  instance.postMessage({features,center:[(b[0]+b[2])/2,(b[1]+b[3])/2],range,mode,options:{preferredLanes:selection,profile,bounds:b,startPoint,endPoint,startBounds:routeAreas.length?undefined:preferredArea?.bounds,startGeometry:routeAreas.length?undefined:preferredArea?.geometry,routeRegions:routeAreas.length>0&&routeAreas.every(area=>area.geometry)?routeAreas.map(area=>({bounds:area.bounds,geometry:area.geometry})):[]}});
  };
  const recommend=async()=>{
   if(aiRequest.current||!shortlisted.length||busy)return;
@@ -55,19 +56,16 @@ export default function ConnectedCourseControl({features,viewport,range,selectio
  };
  const course=courses[selectedIndex],explanation=ai?.ranking.find(item=>item.candidateId===aiIdFor(selectedIndex));
  return <section className="connected-course-control" aria-label="실제 도로 코스 추천">
-  <div className="course-start-control"><strong>출발 위치</strong><div className="connected-course-mode" role="group" aria-label="출발 위치 설정">
-   <button type="button" aria-pressed={!startPoint&&!pickingStart} onClick={onClearStart}>자동 선택</button>
-   <button type="button" aria-label={pickingStart?'출발 위치 지정 취소':'지도에서 출발 위치 지정'} aria-pressed={pickingStart} disabled={!viewport||viewport.zoom<13} onClick={onPickStart}>{pickingStart?'지정 취소':'직접 지정'}</button>
-  </div>
-   <small role="status">{pickingStart?'출발할 도로 근처를 지도에서 누르세요.':startPoint?'지정한 위치 가까운 도로에서 출발합니다.':preferredArea?'희망 지역 안에서 난이도에 맞는 출발점과 경로를 찾습니다.':'현재 지도 안에서 난이도에 맞는 출발점과 경로를 찾습니다.'}</small>
-  </div>
-  {destinationArea&&<p className="data-note">{routeAreas.map(area=>area.name).join(' → ')} · 지역 이동</p>}
+  <CourseLocationControl label="출발" point={startPoint} picking={pickingStart} viewport={viewport} preferredArea={preferredArea} onClear={onClearStart} onPick={onPickStart} automaticNote={preferredArea?'희망 지역 안에서 출발점을 찾습니다.':'현재 지도 안에서 출발점을 찾습니다.'}/>
+  <CourseLocationControl label="도착" point={endPoint} picking={pickingEnd} viewport={viewport} preferredArea={preferredArea} onClear={onClearEnd} onPick={onPickEnd} automaticNote="경로 형태에 맞춰 도착점을 찾습니다."/>
+  {!!routeAreas.length&&<div className="course-region-summary"><strong>탐색 지역</strong><div>{routeAreas.map(area=><span key={area.id}>{area.name}</span>)}</div><small>선택한 구역 전체에서 경로를 찾습니다.</small></div>}
+  <strong className="course-field-label">경로 형태</strong>
   <div className="connected-course-actions"><div className="connected-course-mode" role="group" aria-label="경로 형태">
-   <button type="button" aria-pressed={mode==='loop'} disabled={!!destinationArea} onClick={()=>setMode('loop')}>순환</button>
+   <button type="button" aria-pressed={mode==='loop'} disabled={!!endPoint} onClick={()=>setMode('loop')}>순환</button>
    <button type="button" aria-pressed={mode==='oneway'} onClick={()=>setMode('oneway')}>편도</button></div>
-   <button className="connect-button" type="button" disabled={busy||!ready||!features.length||!viewport||viewport.zoom<13||pickingStart} onClick={connect}>{busy?'코스 찾는 중…':`${range.min}~${range.max}km 후보 찾기`}</button></div>
+   <button className="connect-button" type="button" disabled={busy||!ready||!features.length||!viewport||(!preferredArea&&viewport.zoom<13)||pickingStart||pickingEnd} onClick={connect}>{busy?'코스 찾는 중…':`${range.min}~${range.max}km 후보 찾기`}</button></div>
   {!!courses.length&&<><div className="connected-course-options" role="group" aria-label="추천 후보 선택">{shortlisted.map((candidate,i)=><button type="button" key={i} aria-pressed={selectedIndex===shortlistedIndices[i]} onClick={()=>{onCourse(candidate);}}>후보 {shortlistedIndices[i]+1}<span className="course-difficulty">{courseSelection.difficultyByIndex[shortlistedIndices[i]]}{fallbackIndices.includes(shortlistedIndices[i])?' · 대체':''}</span>{ai?.recommendedCandidateId===`candidate_${i+1}`&&<span className="ai-recommended">AI 추천</span>}</button>)}</div>
-   {course&&<p className="connected-course-result" role="status">후보 {selectedIndex+1} · 약 {(course.lengthMeters/1000).toFixed(2)}km · {course.linkIds.length}개 구간{onSaveCourse&&<button type="button" onClick={()=>onSaveCourse(course,{name:`${routeAreas.map(area=>area.name).join(' → ')||preferredArea?.name||'선택 지역'} ${destinationArea?'이동':'순환'} 코스 · 후보 ${selectedIndex+1}`,sections:routeAreas.map(area=>area.name),difficulty:courseSelection.difficultyByIndex[selectedIndex]})}>코스 저장</button>}<button type="button" onClick={()=>{worker.current?.terminate();worker.current=null;setBusy(false);setCourses([]);setError('');cancelAI();onCourse(null);}}>경로 지우기</button></p>}
+   {course&&<div className="connected-course-result"><p role="status">후보 {selectedIndex+1} · 약 {(course.lengthMeters/1000).toFixed(2)}km · {course.linkIds.length}개 구간</p><div className="course-result-actions">{onSaveCourse&&<button type="button" onClick={()=>onSaveCourse(course,{name:`${routeAreas.map(area=>area.name).join(' · ')||preferredArea?.name||'선택 지역'} ${mode==='oneway'?'편도':'순환'} 코스 · 후보 ${selectedIndex+1}`,sections:routeAreas.map(area=>area.name),difficulty:courseSelection.difficultyByIndex[selectedIndex]})}>코스 저장</button>}<button type="button" onClick={()=>{worker.current?.terminate();worker.current=null;setBusy(false);setCourses([]);setError('');cancelAI();onCourse(null);}}>경로 지우기</button></div></div>}
    {difficulty!=='전체'&&<div className="connected-course-mode" role="group" aria-label="채택 후보 수">{[3,4].map(count=><button type="button" key={count} aria-pressed={adoptCount===count} disabled={aiBusy} onClick={()=>setAdoptCount(count)}>{count}개 채택</button>)}</div>}
    <small>{difficulty==='전체'?'쉬움·보통·어려움 2개씩 추천':'선택한 난이도에서 추천'} · 비용 분포 기준의 상대 난이도</small>
    {shortlistedIndices.some(index=>fallbackIndices.includes(index))&&<p className="course-shortage" role="status">해당 난이도 후보가 부족해 남은 경로 중 비용이 높은 순서로 보충했습니다.</p>}
@@ -87,7 +85,8 @@ export default function ConnectedCourseControl({features,viewport,range,selectio
    <small>교통·사고 cost 0은 자료 미수집일 수 있습니다. 일치율은 공통 LINK 길이 ÷ 긴 경로의 길이입니다. {Math.round(COURSE_OVERLAP_THRESHOLD*100)}% 이상 겹치는 후보는 낮은 cost 하나만 채택합니다.</small>
   </details>}
   {error&&<p className="course-error" role="alert">{error}</p>}
-  {course&&<><small role="status">{course.startSelection==='manual'?`지정 위치에서 약 ${Math.round(course.startDistance)}m 떨어진 도로 노드로 연결 · 이동 구간은 코스에 포함하지 않습니다.`:`출발 노드 ${course.startNodesCompared}곳 비교 · 후보별 출발 위치는 다를 수 있습니다.`}</small><small>초록색은 도로상의 코스 시작·종료 지점입니다. 주차·승차 장소를 뜻하지 않습니다. 화살표는 선택한 후보의 진행 방향입니다.</small></>}
-  <small className="course-limit-note">거리·회전은 지도 데이터 기준입니다. 실제 통행 제한은 반영되지 않습니다.</small>
+  {course&&<><small role="status">{course.startSelection==='manual'?`지정 위치에서 약 ${Math.round(course.startDistance)}m 떨어진 도로 지점로 연결 · 이동 구간은 코스에 포함하지 않습니다.`:`출발 노드 ${course.startNodesCompared}곳 비교 · 후보별 출발 위치는 다를 수 있습니다.`}</small><small>초록색은 도로상의 코스 시작·종료 지점입니다. 주차·승차 장소를 뜻하지 않습니다. 화살표는 선택한 후보의 진행 방향입니다.</small></>}
+  {course?.endSelection==='manual'&&<small role="status">지정 도착 위치에서 약 {Math.round(course.endDistance)}m 떨어진 도로 지점에 연결합니다. 접근 거리는 코스에 포함하지 않습니다.</small>}
+  <small className="course-limit-note">연간 사고 12건 이상 또는 사고 3건 이상·30건/km 이상인 도로 구간은 탐색 제외합니다. 사고 자료가 없는 구간은 0건으로 계산합니다. 거리·회전은 지도 데이터 기준이며 실제 통행 제한은 반영되지 않습니다.</small>
  </section>;
 }

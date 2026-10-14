@@ -8,25 +8,27 @@ export default function DesiredRegion({selectedAreas,onChangeAreas,onProvinceSel
  const boundaryRequest=useRef(null);
  useEffect(()=>{const c=new AbortController();setLoading(true);setError('');loadCourseRegions({signal:c.signal}).then(setAreas).catch(e=>{if(!c.signal.aborted)setError(e.message);}).finally(()=>{if(!c.signal.aborted)setLoading(false);});return()=>c.abort();},[retry]);
  useEffect(()=>()=>boundaryRequest.current?.abort(),[]);
+ const neighborsOf=area=>area.adjacentIds||areas.find(item=>item.id===area.id)?.adjacentIds||[];
  const choose=async area=>{
   const index=selectedAreas.findIndex(item=>item.id===area.id);
   if(index>=0){onChangeAreas(selectedAreas.filter(item=>item.id!==area.id));return;}
-  if(selectedAreas.length>=MAX_SELECTED_AREAS||choosing)return;
+  if(selectedAreas.length>=MAX_SELECTED_AREAS||choosing||selectedAreas.length&&!selectedAreas.some(item=>neighborsOf(item).includes(area.id)))return;
   const controller=new AbortController();boundaryRequest.current=controller;setChoosing(true);setError('');
   try{const resolved=await loadCourseRegionBoundary(area,{signal:controller.signal});if(!controller.signal.aborted)onChangeAreas([...selectedAreas,resolved]);}
   catch(e){if(!controller.signal.aborted)setError(e.message);}
   finally{if(boundaryRequest.current===controller)setChoosing(false);}
  };
  const provinces=[...new Set(areas.map(provinceOf))].sort((a,b)=>Object.keys(provinceLabels).indexOf(a)-Object.keys(provinceLabels).indexOf(b));
- const matches=areas.filter(area=>provinceOf(area)===province);
- return <section className="region-picker"><span className="eyebrow">코스 추천 조건</span><h2>희망 지역</h2><p className="subtext">지역을 선택한 순서대로 코스를 연결합니다. 최대 3곳까지 고를 수 있습니다.</p>
-  {selectedAreas.length>0&&<div className="selected-region-list" aria-label="선택한 지역 순서">{selectedAreas.map((area,index)=><button type="button" key={area.id} aria-label={`${index===0?'출발':index===selectedAreas.length-1&&selectedAreas.length>1?'도착':'경유'} ${area.name} 선택 해제`} onClick={()=>onChangeAreas(selectedAreas.filter(item=>item.id!==area.id))}><span>{index===0?'출발':index===selectedAreas.length-1&&selectedAreas.length>1?'도착':'경유'}</span>{area.name}<b aria-hidden="true">×</b></button>)}</div>}
+ const adjacentIds=new Set(selectedAreas.flatMap(neighborsOf));
+ const matches=areas.filter(area=>provinceOf(area)===province||adjacentIds.has(area.id));
+ return <section className="region-picker"><span className="eyebrow">코스 추천 조건</span><h2>희망 지역</h2><p className="subtext">최대 인접한 3곳까지 고를 수 있습니다</p>
+  {selectedAreas.length>0&&<div className="selected-region-list" aria-label="선택한 지역">{selectedAreas.map(area=><button type="button" key={area.id} disabled={choosing} aria-label={`${area.name} 선택 해제`} onClick={()=>onChangeAreas(selectedAreas.filter(item=>item.id!==area.id))}>{area.name}<b aria-hidden="true">×</b></button>)}</div>}
   <h3 className="region-step-label">시·도</h3>
   <div className="region-provinces" role="group" aria-label="시·도 선택">{provinces.map(name=><button type="button" key={name} aria-pressed={province===name} disabled={choosing} onClick={()=>{setProvince(name);setError('');const bounds=areas.filter(area=>provinceOf(area)===name&&area.bounds).map(area=>area.bounds);if(bounds.length)onProvinceSelect?.({name,bounds:[Math.min(...bounds.map(b=>b[0])),Math.min(...bounds.map(b=>b[1])),Math.max(...bounds.map(b=>b[2])),Math.max(...bounds.map(b=>b[3]))]});}}>{provinceLabels[name]||name}</button>)}</div>
   <h3 className="region-step-label">시·군·구 <span>{provinceLabels[province]||province}</span></h3>
   {(choosing||loading||error)&&<p className="data-note" role="status">{choosing?'지역 경계를 불러오고 있습니다…':loading?'지역을 불러오고 있습니다…':error}</p>}
   {error&&<button type="button" onClick={()=>setRetry(n=>n+1)}>다시 불러오기</button>}
-  <div className="region-options" role="group" aria-label="시·군·구 선택">{matches.map(area=>{const index=selectedAreas.findIndex(item=>item.id===area.id);return <button type="button" key={area.id} aria-pressed={index>=0} disabled={choosing||index<0&&selectedAreas.length>=MAX_SELECTED_AREAS} onClick={()=>choose(area)}>{index>=0&&<span className="region-order">{index+1}</span>}{area.name.slice(province.length).trim()||area.name}</button>;})}</div>
-  <p className="data-note">선택한 구역은 지도에 강조 표시합니다. 지역을 여러 곳 고르면 선택 순서대로 잇는 경로를 찾습니다.</p>
+  <div className="region-options" role="group" aria-label="시·군·구 선택">{matches.map(area=>{const index=selectedAreas.findIndex(item=>item.id===area.id);return <button type="button" key={area.id} aria-pressed={index>=0} disabled={choosing||index<0&&(selectedAreas.length>=MAX_SELECTED_AREAS||selectedAreas.length>0&&!selectedAreas.some(item=>neighborsOf(item).includes(area.id)))} onClick={()=>choose(area)}>{provinceOf(area)===province?area.name.slice(province.length).trim()||area.name:area.name}</button>;})}</div>
+  <p className="data-note">다른 시·도의 인접 지역도 함께 표시합니다. 선택한 구역 전체에서 경로를 찾습니다.</p>
  </section>;
 }

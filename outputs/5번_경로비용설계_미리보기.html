@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>5번 경로 비용 설계 미리보기</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#ececec;color:#000;font-family:'Noto Serif KR Medium','Noto Serif KR',serif}
+.tools{max-width:794px;margin:24px auto 14px;padding:0 16px;display:flex;justify-content:space-between;gap:16px;align-items:center;font:14px/1.5 sans-serif;color:#333}
+.tools button{padding:8px 14px;background:#fff;border:1px solid #aaa;border-radius:4px;cursor:pointer}
+.sheet{max-width:794px;margin:0 auto 32px;background:#fff;padding:75px;box-shadow:0 2px 12px #0001}
+.section{border:1px solid #000}.section-title{display:flex;background:#f2f2f2;border-bottom:1px solid #000;margin:0;font-size:12pt;line-height:1.5;font-weight:700}
+.section-title span{padding:8px 10px;border-right:1px solid #000}.section-title strong{padding:8px 10px;font-weight:700}
+.content{padding:12px 10px 16px;font-size:10pt;line-height:1.65;word-break:keep-all;overflow-wrap:anywhere}
+h2{font-size:12pt;line-height:1.5;margin:19px 0 8px;font-weight:700;break-after:avoid}h2:first-child{margin-top:0}p{margin:0 0 9px;orphans:3;widows:3}
+.formula{line-height:1.75;margin:9px 0 12px;break-inside:avoid}.formula p{margin:0 0 3px}
+@media(max-width:650px){.sheet{padding:22px;margin-bottom:0}.tools{font-size:12px}.content{line-height:1.75}}
+@page{size:A4;margin:20mm}@media print{body{background:#fff}.tools{display:none}.sheet{margin:0;padding:0;max-width:none;box-shadow:none}.section{border:0}.content{padding:12px 0}.section-title{border:1px solid #000}.section-title strong{padding:8px 10px}}
+</style>
+</head>
+<body>
+<div class="tools"><div>5번 미리보기 · 본문 10pt / 소제목 12pt<br>자료 제공기관·연도·활용 범위 설명은 6번 사례에 배치</div><button onclick="window.print()">인쇄</button></div>
+<main class="sheet"><article class="section">
+<h1 class="section-title"><span>5</span><strong>경로 비용 설계</strong></h1>
+<div class="content">
+<h2>• 비용 계산의 기본 원칙</h2>
+<p>경로 비용(cost)은 차로 기본 비용, 사용자 선호와 연습 목표에 따른 조정, 교통량, 사고, 회전과 재주행 비용을 합한 비교 점수다. 금액이나 사고 확률을 뜻하지 않는다.</p>
+<p>구간마다 실제 주행거리를 반영해 비용을 합산하고, 후보 경로는 총비용을 전체 주행거리로 나눈 km당 비용으로 비교한다. 길이가 다른 경로에도 일관된 기준을 적용하면서 이용자가 원하는 연습 경험과 부담을 함께 고려하기 위한 방식이다.</p>
+
+<h2>• 차로 기본 비용과 선호 반영</h2>
+<p>차로 기본 비용은 주행거리(m)에 차로별 계수를 곱해 계산한다. 계수는 3·4·5차로에 1, 2·6차로에 1.5, 7차로에 2, 8차로 이상에 2.5, 1차로와 차로 정보가 없는 구간에 3을 부여한다.</p>
+<p>선호 차로를 선택한 경우에는 선택 범위 밖의 구간에 주행거리(m) × 3을 추가한다. 이용자가 선택한 도로 특성을 후보 구성에 반영하기 위한 조정이다.</p>
+
+<h2>• 교통량 비용</h2>
+<p>교통량이 같아도 차로 수가 다르면 차로당 통행량이 달라진다. 따라서 평일 연평균 일 교통량을 차로 수로 나눈 값을 사용하고, 같은 시도의 최댓값과 비교한 상대값 q를 비용에 반영한다.</p>
+<div class="formula"><p>q = 차로당 평일 교통량 ÷ 같은 시도의 차로당 평일 교통량 최댓값</p><p>교통량 비용 = 주행거리(m) × 2 × min(1, q)</p></div>
+<p>관측값과 기준값은 같은 기간과 단위로 비교하고, 실제 주행거리에 비례해 비용을 합산한다. 교통량 자체를 구간 길이로 나누는 방식은 사용하지 않는다.</p>
+
+<h2>• 연습 목표와 회전 비용</h2>
+<p>원하는 운전 경험이 포함된 후보를 제안하기 위해 해당 연습 목표의 비용을 조정한다. 회전 기본 비용은 직진 0, 우회전 50, 좌회전 150, 유턴 500을 회전마다 부여한다. 해당 회전을 연습 목표로 선택하면 비용을 70% 낮춰 우회전 15, 좌회전 45, 유턴 150을 적용한다.</p>
+<p>좁은 도로 연습을 선택하면 1차로 구간에서 주행거리(m) × 0.75를 차감한다. 교차로 연습을 선택하면 세 방향 이상의 도로가 연결되는 교차로 관련 구간의 차로 기본 비용을 15% 낮춘다. 순환형 유턴 연습에서 지나온 구간을 반대 방향으로 다시 주행하면 재주행 거리(m) × 3을 추가한다.</p>
+<p>이러한 조정은 연습 목표를 반영하기 위한 것이며, 사고 비용과 사고 다발 구간의 제외 기준에는 적용하지 않는다.</p>
+
+<h2>• 사고 밀도에 따른 지수 비용</h2>
+<p>같은 사고건수라도 짧은 구간에 집중된 경우와 긴 구간에 분산된 경우의 차이를 반영하기 위해 연간 사고건수를 구간 길이로 나눈 사고 밀도를 사용한다.</p>
+<div class="formula"><p>N = 해당 도로 구간의 1년간 사고건수</p><p>r = 연간 사고 밀도(건/km)</p><p>r = N ÷ 도로 구간 전체 길이(km)</p><p>사고 비용 = 주행거리(m) × 3 × (2<sup>r/3</sup> − 1) ÷ (2<sup>20/3</sup> − 1)</p></div>
+<p>사고 밀도가 3건/km 증가할 때마다 지수항이 두 배가 된다. 사고가 0건이면 비용도 0이 되도록 1을 빼므로, 같은 주행거리에서 밀도가 3·6·9건/km일 때 비용 비율은 1:3:7이다. 분모의 20건/km은 비용 크기를 맞추는 기준값이며 경로 제외 기준이 아니다.</p>
+<p>구간 일부만 주행하더라도 사고 밀도는 구간 전체 길이를 기준으로 계산하고, 비용만 실제 주행 길이에 비례시킨다.</p>
+
+<h2>• 사고 다발 구간의 제외</h2>
+<p>연간 사고건수가 12건 이상이거나, 사고건수가 3건 이상이면서 사고 밀도가 30건/km 이상인 구간은 후보 경로에서 제외한다. 큰 비용을 부여해 추천 순위를 낮추는 방식이 아니라 경로에 포함되지 않도록 하는 기준이다.</p>
+<p>사고가 1·2건인 구간은 길이가 짧다는 이유만으로 밀도 기준에 따라 제외하지 않는다. 다만 지수 비용은 동일하게 적용하므로 제외되지 않은 구간이라도 사고 밀도에 따라 비용이 높아질 수 있다. 제외 기준을 제안한 이유는 다음 절의 대구 사고 분포 사례에서 설명한다.</p>
+
+<h2>• 후보 경로의 km당 비용</h2>
+<p>각 구간의 비용과 경로 전체의 회전·재주행 비용을 합산해 총비용을 계산한다. 길이가 긴 경로는 주행거리만으로도 총비용이 커질 수 있으므로, 후보 비교에는 km당 비용을 사용한다.</p>
+<div class="formula"><p>후보 경로의 km당 비용 = 총비용 ÷ 전체 주행거리(km)</p></div>
+<p>이를 통해 길이가 다른 후보도 일관된 기준으로 비교하면서, 앞서 설명한 연습 목표별 추천 순서에 따라 경로를 제안한다.</p>
+
+<h2>• 자료가 없는 구간의 처리</h2>
+<p>사고 자료가 없는 구간은 계산상 0건으로, 유효한 교통량이 없는 구간은 추가 교통량 비용을 0으로 처리한다. 이를 실제 무사고나 낮은 교통량으로 설명하지 않고 자료 없음으로 표시하며, 후보별 자료 적용 거리 비율을 함께 제공한다.</p>
+<p>접근 거리, 예상 소요시간, 제한속도, 날씨와 실시간 정체는 기본 비용에 포함하지 않는다. 다음 절에서는 활용 자료의 범위와 함께 이 비용 기준을 대구 자료와 네 후보 경로에 적용한 계산 사례를 제시한다.</p>
+</div></article></main>
+</body></html>

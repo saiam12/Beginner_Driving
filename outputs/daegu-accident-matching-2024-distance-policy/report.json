@@ -1,0 +1,37 @@
+{
+  "year": 2024,
+  "source_accidents": 10222,
+  "statuses": {
+    "excluded": 2754,
+    "mapped": 6841,
+    "held": 627
+  },
+  "reason_counts": {
+    "explicit_user_exclusion": 2,
+    "no_link_within_50m": 2751,
+    "nearest_within_20m": 6841,
+    "nearest_over_20m_within_50m": 627,
+    "coordinate_outside_daegu_region_no_valid_candidate": 1
+  },
+  "links_with_counts": 1893,
+  "corridors_with_counts": 1321,
+  "rules": {
+    "map_nearest_at_most_m": 20,
+    "hold_over_m": 20,
+    "hold_at_most_m": 50,
+    "exclude_no_link_within_m": 50,
+    "retain_explicit_user_exclusions": [
+      "2024010100100012",
+      "2024010200100265"
+    ],
+    "tie_break": "smallest numeric link ID"
+  },
+  "accuracy": "User-chosen nearest-distance policy; not official link-level statistics or measured assignment accuracy",
+  "coordinate_operation": "Inverse of Korea Unified Belt + KGD2002 to WGS 84 (1) + Inverse of ITRF_2000_To_WGS_1984 + axis order change (2D) + unnamed (with axis order normalized for visualization)",
+  "source_sha256": {
+    "accidents": "61b49416838bac0810cd3478610c2767f12de736be26c6460308352cf60f0475",
+    "daegu": "bedc69f91e8627660443cc92ec91db3fe6c065fc5755ba4d871327e139a4b939",
+    "gyeongbuk": "9945bf284b91561825fa14f9c761726510237d9074e09ccd2f079e4235f6b89e",
+    "gyeongnam": "6af067088999d19c85e834d85b861aab1d2415f90c5d34c73cc6af4c58d2d67c"
+  }
+}

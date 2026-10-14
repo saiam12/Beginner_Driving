@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>대구 2024 사고 링크 검토</title></head>
+<body><main class="review-workspace">
+<header class="review-header"><div><h1>대구 2024 사고 링크 검토</h1><p>15m 초과는 해당 링크 없음으로 처리하고 검토 목록에서 제외 · 빨간 점은 사고 위치</p></div><a href="/">차근차근으로</a></header>
+<nav class="review-toolbar" aria-label="사고 탐색"><button id="prev">이전 사고</button><button id="next">다음 사고</button><label for="filter">목록</label><select id="filter"><option value="all">검토 사고</option><option value="pending">아직 판단하지 않은 사고</option></select><label for="jump">사고·구분번호</label><input id="jump" placeholder="번호 입력" inputmode="numeric"><button id="clear" aria-label="검색어 지우기">지우기</button><button id="find">찾기</button><button id="download">판단 결과 CSV 저장</button></nav>
+<p id="progress" role="status" class="review-progress">사고 자료를 불러오는 중입니다.</p>
+<p id="error" role="alert" class="review-error"></p>
+<div class="review-grid"><section class="review-map-panel" aria-label="상세 지도"><div class="review-map-toolbar"><span id="map-status" role="status">지도를 연결하는 중입니다.</span><button id="recenter">사고점으로 이동</button><button id="layers">위성지도 보기</button><button id="retry">지도 다시 연결</button></div><div id="map" class="review-map" aria-label="사고점과 후보 도로 지도"></div><p class="review-caption">사고 위치는 TAAS 원본 좌표입니다. 같은 색은 같은 상·하행 구간 후보이며, 15m를 초과한 후보는 위치 확인용으로만 표시하며 매핑에서 제외합니다.</p></section><aside class="review-aside"><div id="summary"></div><p id="saved" role="status"></p><div id="roadlist" class="review-roadlist"></div><div class="review-actions"><button id="unmapped">해당 링크 없음</button><button id="hold">판단 보류</button></div><label for="note">검토 메모</label><textarea id="note" rows="3"></textarea><button id="saveNote">메모 저장</button><p class="review-caption">판단 결과는 이 브라우저에 임시 저장됩니다. CSV로 내려받아 보관해주세요.</p></aside></div>
+</main><script type="module" src="/src/review/accident-review.js"></script></body></html>

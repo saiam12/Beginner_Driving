@@ -1,0 +1,52 @@
+{
+  "statuses": {
+    "user_excluded": 2,
+    "no_candidate_within_50m": 2751,
+    "corridor_estimate_direction_ignored": 4109,
+    "single_link_estimate": 442,
+    "user_selected_corridor": 4,
+    "review_required": 2913,
+    "coordinate_outside_daegu_region": 1
+  },
+  "counted_accidents": 4555,
+  "pending": 5665,
+  "manual_decisions": {
+    "2024010100100099": {
+      "decision": "선택",
+      "selected_link_or_group": "1064156",
+      "selected_candidate_link_id": "1064156",
+      "note": "사용자 지시: 예시의 후보 1번에 매핑; 상·하행은 구간 단위"
+    },
+    "2024010100100160": {
+      "decision": "선택",
+      "selected_link_or_group": "1052019|1052020",
+      "selected_candidate_link_id": "1052020",
+      "note": "사용자 지시: 예시의 후보 1번에 매핑; 상·하행은 구간 단위"
+    },
+    "2024010100100197": {
+      "decision": "선택",
+      "selected_link_or_group": "1092926",
+      "selected_candidate_link_id": "1092926",
+      "note": "사용자 지시: 예시의 후보 1번에 매핑; 상·하행은 구간 단위"
+    },
+    "2024010200100211": {
+      "decision": "선택",
+      "selected_link_or_group": "1051613|1051614",
+      "selected_candidate_link_id": "1051614",
+      "note": "사용자 지시: 예시의 후보 1번에 매핑; 상·하행은 구간 단위"
+    },
+    "2024010200100265": {
+      "decision": "제외",
+      "selected_link_or_group": "",
+      "selected_candidate_link_id": "",
+      "note": "사용자 지시: 상인로26안길 쪽 또는 테크노상업로4길 사고 제외"
+    },
+    "2024010100100012": {
+      "decision": "제외",
+      "selected_link_or_group": "",
+      "selected_candidate_link_id": "",
+      "note": "사용자 지시: 상인로26안길 쪽 또는 테크노상업로4길 사고 제외"
+    }
+  },
+  "scope": "Only six explicit user decisions; other assignments remain spatial estimates"
+}

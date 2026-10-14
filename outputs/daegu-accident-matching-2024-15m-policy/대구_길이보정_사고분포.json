@@ -1,0 +1,36 @@
+{
+  "daegu_total_links": 3743,
+  "daegu_observed_links": 1851,
+  "without_mapped_accidents": 1892,
+  "length_basis": "app full-link lengthMeters; unrounded comparisons",
+  "thresholds": [
+    {
+      "threshold_per_km": 5,
+      "links": 1048,
+      "percent_all_daegu_links": 28.0,
+      "percent_observed_links": 56.62,
+      "mapped_accidents_on_links": 4710
+    },
+    {
+      "threshold_per_km": 10,
+      "links": 550,
+      "percent_all_daegu_links": 14.69,
+      "percent_observed_links": 29.71,
+      "mapped_accidents_on_links": 2709
+    },
+    {
+      "threshold_per_km": 15,
+      "links": 340,
+      "percent_all_daegu_links": 9.08,
+      "percent_observed_links": 18.37,
+      "mapped_accidents_on_links": 1491
+    },
+    {
+      "threshold_per_km": 20,
+      "links": 234,
+      "percent_all_daegu_links": 6.25,
+      "percent_observed_links": 12.64,
+      "mapped_accidents_on_links": 844
+    }
+  ]
+}

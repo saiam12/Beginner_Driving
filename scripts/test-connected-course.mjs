@@ -140,7 +140,7 @@ const calculated=roadDataCost(metrics,2000);
 assert.equal(calculated.trafficPerLane,300);
 assert.equal(calculated.accidentsPerKm,1);
 assert.equal(calculated.trafficCost,1200);
-assert.equal(calculated.accidentCost,1500);
+assert(Math.abs(calculated.accidentCost-6000*(2**(1/3)-1)/(2**(20/3)-1))<1e-10);
 assert.equal(roadDataCost({...metrics,lanes:6},2000).trafficCost,600);
 const missing=roadDataCost({lanes:3},2000);
 assert.equal(missing.trafficScore,null);assert.equal(missing.accidentScore,null);

@@ -290,4 +290,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit('Legacy ITS generation is disabled. Use scripts/preprocess-level55-roads.py with a new --output directory.')

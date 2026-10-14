@@ -115,47 +115,33 @@ package-lock.json      # 재현 가능한 의존성 설치를 위해 커밋
 
 ## 실제 도로 검색
 
-기존 검색창은 표준노드링크 ROAD_NAME의 정확/부분 일치와 시·군·구 검색을 지원합니다. `공원`, `공원로`, `테헤란로`, `구로구`를 입력하고 결과를 선택하세요. 동명 도로는 노드·끝점 연결로 구분하며, 선택한 그룹의 실제 도로선만 불러옵니다. 기존 예시 지역의 코스·필터·순위는 유지합니다.
+도로 검색·지도·차로·코스 생성은 View-T 2024년 전국 Level 5.5 도로망을 사용합니다. ITS 도로망과 ID 대응 로더는 사용하지 않습니다. 도로명 정확/부분 일치와 시·군·구 검색을 지원하고, 같은 이름의 도로는 실제 위치와 노드 연결로 구분합니다.
 
-- `public/data/roads/manifest.json` / `.json.gz`: 도로명과 검색 shard 목록, 행정구역 위치
-- `public/data/roads/search/*.json.gz`: geometry 없는 도로 그룹 검색 정보
-- `public/data/roads/geometry/*.jsonl.gz`: 선택 시 요청하는 LINK 속성/GeoJSON
-- `public/data/roads/provenance.json`: 실제 원본 CRS·컬럼·개수·변환 방식
-- `public/data/roads/target-link.json`: 검증용 LINK_ID 1160059701
-- `scripts/preprocess-road-links.py`: 원본을 읽기 전용으로 처리하는 전처리
-- `src/lib/road-search.js`: 검색·페이지 조회·압축 해제·선택 geometry 로딩
-- `src/types/road.d.ts`: LINK 및 향후 route의 ID 계약
-
-전처리 데이터는 `public/`의 정적 파일로 배포합니다. 전국 geometry를 JS bundle에 넣거나 초기 화면에서 읽지 않습니다. gzip 파일은 최신 브라우저의 `DecompressionStream`으로 읽으며, 실패한 검색/선택은 다시 시도할 수 있습니다.
+- 전국 119,466개 방향별 도로 구간, 9,249개 검색 그룹, 1,778개 공간 타일
+- 같은 해의 교통량 119,413개 직접 연결, 교통량 없는 53개 구간은 미확인
+- `linkId`와 `lev5_5_link_id` 값은 동일한 Level 5.5 ID 문자열이며 `identifierSystem`은 `level5.5`
+- `public/data/roads/provenance.json`: 원본 해시, CRS, 집계 및 교통량 기준
+- `public/data/roads/target-link.json`: 검증용 올림픽대로 ID `1014051`
+- `public/data/roads/search`, `geometry`, `lanes`: 필요할 때만 읽는 압축 검색·형상·차로 데이터
 
 ### 전처리 재생성
 
-Python 3.12, pyproj, shapely를 사용합니다. 경계 파일은 통계청 SGIS 원자료 기반 [admdongkor 2026-07-01](https://github.com/vuski/admdongkor/tree/master/ver20260701)의 `HangJeongDong_ver20260701.geojson`을 `.local/roads/admin-boundaries.geojson`에 보관합니다. 외부 경계가 없으면 지역명을 추측하지 않고 좌표와 지역 미확인을 표시합니다.
+공식 네트워크 다운로드 페이지에서 2024년 17개 시도의 `*_link_lev5.5_2024.zip`을 `.local/viewt/`에 준비합니다. 도로구간 표는 `.local/viewt/2024-regional/traffic.csv`, 기존 행정 경계는 `.local/roads/admin-boundaries.geojson`에 보관합니다. 원본 ZIP은 수정하지 않습니다. 새 출력 경로에 생성한 후 검증하고 배포 데이터를 교체합니다.
 
 ```powershell
 python -m pip install -r scripts/requirements-roads.txt
-python scripts/preprocess-road-links.py --links "C:\Users\CHOI\Downloads\[2026-09-14]NODELINKDATA\MOCT_LINK.shp" --nodes "C:\Users\CHOI\Downloads\[2026-09-14]NODELINKDATA\MOCT_NODE.shp" --boundaries .local/roads/admin-boundaries.geojson
-python scripts/test-preprocess-road-links.py
-python scripts/verify-road-data.py
+python scripts/preprocess-level55-roads.py --output .local/level55-rebuild
+python scripts/verify-level55-data.py --root .local/level55-rebuild
+npm run test:level55
+npm run test:lanes
 npm run build
 ```
 
-원본 SHP/DBF/PRJ는 읽기만 합니다. 중간 SQLite와 행정경계는 `.local/`에 유지하고 배포하지 않습니다. ROAD_NAME이 없거나 geometry가 비어 있는 LINK는 이름 검색에서 제외합니다. 이름이 변경된 원본으로 재생성할 때는 새 `--output` 경로에 생성하고 검증 후 교체하세요.
+기존 ITS 전처리 명령은 실행을 차단했습니다. 이전 도로 데이터는 `.local/roads-its-backup-20261010`에 보존했습니다. 브라우저의 기존 저장 코스는 그대로 두고, 새 코스는 `beginner-driving.saved-courses.level55.v2`에 저장하여 서로 다른 도로망의 ID가 섞이지 않게 합니다.
 
-지역은 LINK geometry 중간점과 시군구 경계를 공간 대조한 결과입니다. 경계를 가로지르는 LINK의 모든 관할을 판정하는 용도가 아닙니다. 같은 이름의 끝점이 15m 이내인 구간은 분리 차도를 포함한 표시용 그룹으로 묶습니다. 이 그룹은 일방통행이나 진입 제한을 반영한 경로가 아닙니다. 거리에는 분리된 양방향 도로선이 각각 포함될 수 있습니다.
+차로 버튼은 선호 차로를 복수 선택합니다. 선택하지 않은 차로도 후보에 포함하되 길이 × 3의 선호 비용을 추가합니다. 이름 없는 구간도 코스 탐색에 포함합니다. 도로 그룹은 지도 표시용이며 실제 통행 허용 여부를 판정하지 않습니다.
 
-출처·처리 조건은 [ATTRIBUTION.md](public/data/roads/ATTRIBUTION.md), 상세 구현·검증 기록은 [ROAD-DATA-INTEGRATION.md](docs/ROAD-DATA-INTEGRATION.md)를 참고하세요.
-
-### 차로 선호와 후보 데이터
-
-상단의 1~6, 7+ 버튼은 선호 차로를 복수 선택한다. 미선택 차로도 경로 후보에 포함하고 길이 × 3의 추가 비용으로 후순위에 둔다. 모두 해제하면 기존 기본 비용 기준을 사용한다. 파란 전체 도로선은 그리지 않는다. 원본 LANES와 이름 없는 도로를 포함한 전체 차로 LINK를 배율 13부터 현재 구역에서 읽는다. 범위가 너무 넓거나 12,000 LINK를 넘으면 더 확대해야 한다. 기존 도로명 검색과 예시 코스는 유지한다.
-
-```powershell
-python scripts/preprocess-lane-tiles.py --links "C:\Users\CHOI\Downloads\[2026-09-14]NODELINKDATA\MOCT_LINK.shp"
-npm run test:lanes
-```
-
-생성한 `public/data/roads/lanes`를 정적 데이터와 함께 배포한다. `.local/roads/lane-tiles`는 중간 파일이며 배포하지 않는다.
+출처는 [ATTRIBUTION.md](public/data/roads/ATTRIBUTION.md), 데이터 적용 과정은 [VIEWT-TRAFFIC-INTEGRATION.md](docs/VIEWT-TRAFFIC-INTEGRATION.md)를 참고하세요.
 
 ### 희망 거리로 실제 도로 연결
 
@@ -165,7 +151,7 @@ npm run test:lanes
 
 경로 탐색 비용은 실제 구간 길이에 차로 배수(3~5차로 1 / 2·6차로 1.5 / 7차로 2 / 8 이상 2.5 / 1차로 3)를 적용하고 회전 비용(직진 0 / 우회전 50 / 좌회전 150 / 유턴 500)을 더한다. 실제 거리는 별도로 관리하며 전체 차로와 제한된 후보 안에서 낮은 비용을 우선한다. 회전은 도로 형상으로 추정하며 통행 허용 여부를 확인하는 기능은 아니다.
 
-교통량·사고 자료의 향후 비용 반영 기능도 준비되어 있다. 데이터가 없는 현재는 추가 비용을 적용하지 않는다. 차로당 교통량과 km당 사고를 같은 관측 기간의 비교 기준으로 정규화하며 입력 계약·미확인 처리·관측 비율은 [ROAD-COST-DATA.md](docs/ROAD-COST-DATA.md)를 참고한다. 실제 자료의 수집과 LINK_ID 병합은 추후 작업이다.
+2024년 평일 추정교통량을 코스 비용과 순위에 반영합니다. 동일 연도의 Level 5.5 ID·도로명·차로·등급·시도·원본 길이를 확인해 직접 연결했습니다. 교통량 비용은 `구간 길이 × 2 × min(1, 차로당 교통량 / 같은 시도의 차로당 기준)`입니다. 기준은 같은 시도 전체 유효 자료의 차로당 교통량 최댓값입니다. 사고와 실시간 교통은 반영하지 않았습니다. [입력 계약](docs/ROAD-COST-DATA.md)을 참고하세요.
 
 ### Gemini 맞춤 추천
 

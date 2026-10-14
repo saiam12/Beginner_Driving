@@ -1,4 +1,5 @@
 import {pointInRegion} from './region-boundary.js';
+import {splitAtManualPoints} from './road-point-snap.js';
 import {distanceBands,MIN_DISTANCE,MAX_DISTANCE,MAX_DISTANCE_SPAN} from './distance-range.js';
 import {roadDataCost} from './road-data-cost.js';
 import {lanePreferenceMultiplier,driverRoadPenalty,driverTurnPenalty,driverJunctionDiscount,practiceGoalMatch,validateProfile} from './driver-preferences.js';
@@ -112,14 +113,13 @@ function path(label) {
  const edges=[];while(label?.edge){edges.push(label.retracingCost?{...label.edge,retracingCost:label.retracingCost}:label.edge);label=label.parent;}return edges.reverse();
 }
 export const AUTO_START_LIMIT=48;
-export const MAX_START_SNAP_METERS=300;
 export function selectCourseStarts(nodes,center,options={}) {
  const original=options.bounds,desired=options.startBounds;
  const b=desired&&original?[Math.max(original[0],desired[0]),Math.max(original[1],desired[1]),Math.min(original[2],desired[2]),Math.min(original[3],desired[3])]:desired||original;
  const visible=nodes.filter(item=>(!b||(item.point[0]>=b[0]&&item.point[0]<=b[2]&&item.point[1]>=b[1]&&item.point[1]<=b[3]))&&pointInRegion(item.point,options.startGeometry));
  if(options.startPoint){
-  const nearest=visible.map(item=>({...item,distance:metersBetween(options.startPoint,item.point)})).sort((a,b)=>a.distance-b.distance||a.node.localeCompare(b.node))[0];
-  if(!nearest||nearest.distance>MAX_START_SNAP_METERS)throw new Error('지정 위치의 300m 안에 출발할 도로가 없습니다. 도로 가까운 위치를 선택하거나 지도를 이동해주세요.');
+  const nearest=(options.startNode?nodes.filter(item=>item.node===options.startNode):visible).map(item=>({...item,distance:metersBetween(options.startPoint,item.point)})).sort((a,b)=>a.distance-b.distance||a.node.localeCompare(b.node))[0];
+  if(!nearest)throw new Error('탐색 범위에 출발할 도로가 없습니다. 희망 지역이나 지도 범위를 바꿔주세요.');
   return [nearest];
  }
  if(!visible.length)return [];
@@ -139,6 +139,17 @@ export const CONNECTED_COURSE_COLOR = '#dc2626';
 function connectInBand(features,center,range,mode='loop',options={}) {
  const min=range.min*1000,max=range.max*1000,target=(min+max)/2;
  if(!Number.isFinite(min)||min<=0||max<min||!center?.every(Number.isFinite))throw new Error('거리와 지도 위치를 확인해주세요.');
+ const selectedRegions=options.routeRegions||[];
+ if(selectedRegions.length){
+  const geometry={type:'MultiPolygon',coordinates:selectedRegions.flatMap(region=>region.geometry.type==='Polygon'?[region.geometry.coordinates]:region.geometry.coordinates)};
+  options={...options,startBounds:undefined,endBounds:undefined,startGeometry:geometry,endGeometry:undefined};
+  features=features.filter(feature=>feature.geometry.type==='LineString'&&feature.geometry.coordinates.every(point=>pointInRegion(point,geometry)||[options.startPoint,options.endPoint].some(manual=>manual&&metersBetween(point,manual)<=3000)));
+ }
+ // Filter full observed links before snapping so a partial link cannot evade exclusion.
+ features=features.filter(f=>!roadDataCost(f.properties,geometryMeters(f.geometry)).accidentExcluded);
+ const snapped=splitAtManualPoints(features,options.startPoint,options.endPoint);
+ features=snapped.features;
+ options={...options,startNode:snapped.start?.node};
  const neighbors=new Map();
  for(const {properties:p,geometry:g} of features){
   if(!p.fNode||!p.tNode||g.type!=='LineString')continue;
@@ -150,8 +161,9 @@ function connectInBand(features,center,range,mode='loop',options={}) {
  for(const feature of features){
   const p=feature.properties,g=feature.geometry;
   // Disconnected multipart geometry cannot prove a continuous driving segment.
-  if(!p.fNode||!p.tNode||seen.has(p.linkId)||g.type!=='LineString'||g.coordinates.length<2)continue;
-  const meters=geometryMeters(g);if(meters<=0||meters>max)continue;seen.add(p.linkId);
+  const routingKey=p.routingKey||p.linkId;
+  if(!p.fNode||!p.tNode||seen.has(routingKey)||g.type!=='LineString'||g.coordinates.length<2)continue;
+  const meters=geometryMeters(g);if(meters<=0||meters>max)continue;seen.add(routingKey);
   const dataCosts=roadDataCost(p,meters),laneCost=meters*laneCostMultiplier(p.lanes);
   const junction=(neighbors.get(p.fNode)?.size||0)>=3;
   const preferenceCost=meters*(lanePreferenceMultiplier(p.lanes,options.preferredLanes)+driverRoadPenalty(p.lanes,options.profile))-laneCost*driverJunctionDiscount(junction,options.profile);
@@ -162,8 +174,15 @@ function connectInBand(features,center,range,mode='loop',options={}) {
   if(!reverse.has(edge.to))reverse.set(edge.to,[]);reverse.get(edge.to).push({...edge,to:edge.from});
   if(!startPositions.has(edge.from))startPositions.set(edge.from,g.coordinates[0]);
  }
- const routeRegions=options.routeRegions?.length>1?options.routeRegions:[];
- const estimate=mode==='oneway'&&options.endBounds?regionHeuristic([...graph.values()].flat(),routeRegions):null;
+ const routeRegions=[];
+ let endSnap=null;
+ if(options.endPoint){
+  const destinations=[...reverse.keys()].filter(node=>!snapped.end||node===snapped.end.node).map(node=>({node,point:reverse.get(node)[0].feature.geometry.coordinates.at(-1)}));
+  endSnap=destinations.map(item=>({...item,distance:metersBetween(options.endPoint,item.point)})).sort((a,b)=>a.distance-b.distance||a.node.localeCompare(b.node))[0];
+  if(!endSnap)throw new Error('탐색 범위에 도착할 도로가 없습니다. 희망 지역이나 지도 범위를 바꿔주세요.');
+  for(const edges of graph.values())for(const edge of edges)edge.endsInRegion=edge.to===endSnap.node;
+ }
+ const estimate=mode==='oneway'&&(options.endBounds||endSnap)?regionHeuristic([...graph.values()].flat(),routeRegions):null;
  const starts=selectCourseStarts([...graph.keys()].map(node=>({node,point:startPositions.get(node)})),center,options);
  let best=null;const pool=new Map(),collectAll=options.collectAll===true;
  const accept=(edges,startDistance)=>{
@@ -173,7 +192,7 @@ function connectInBand(features,center,range,mode='loop',options={}) {
   if(mode==='loop'&&metersBetween(edges.at(-1).feature.geometry.coordinates.at(-1),edges[0].feature.geometry.coordinates[0])>60)return false;
   const lengthMeters=edges.reduce((sum,edge)=>sum+edge.meters,0);
   if(lengthMeters<min||lengthMeters>max)return false;
-  if(new Set(edges.map(edge=>edge.feature.properties.linkId)).size!==edges.length)return false;
+  if(new Set(edges.map(edge=>edge.feature.properties.routingKey||edge.feature.properties.linkId)).size!==edges.length)return false;
   const costBreakdown=edges.reduce((sum,edge,i)=>({lane:sum.lane+edge.laneCost,preference:sum.preference+edge.preferenceCost+(edge.retracingCost||0),traffic:sum.traffic+edge.dataCosts.trafficCost,accidents:sum.accidents+edge.dataCosts.accidentCost,turns:sum.turns+(i?transitionCost(edges[i-1],edge):0)}),{lane:0,preference:0,traffic:0,accidents:0,turns:0});
   const cost=Object.values(costBreakdown).reduce((sum,value)=>sum+value,0);
   const key=[...edges.map(edge=>edge.feature.properties.linkId)].sort().join(',');
@@ -187,7 +206,7 @@ function connectInBand(features,center,range,mode='loop',options={}) {
    if(i){const type=turnFromDirections(edges[i-1].endDirection,edge.startDirection);if(type in practiceCounts)practiceCounts[type]++;}
   });
   const goalMatch=practiceGoalMatch(options.profile,practiceCounts);
-  const course={searchAlgorithm:estimate?'astar':'dijkstra',practiceCounts,goalMatch,startNode:edges[0].from,startSelection:options.startPoint?'manual':'auto',startNodesCompared:starts.length,mode,lengthMeters,cost,costBreakdown,dataCoverage,startDistance,linkIds:edges.map(edge=>edge.feature.properties.linkId),
+  const course={searchAlgorithm:estimate?'astar':'dijkstra',practiceCounts,goalMatch,startNode:edges[0].from,startSelection:options.startPoint?'manual':'auto',endSelection:options.endPoint?'manual':'auto',endDistance:endSnap?.distance??0,startNodesCompared:starts.length,mode,lengthMeters,cost,costBreakdown,dataCoverage,startDistance,linkIds:[...new Set(edges.map(edge=>edge.feature.properties.linkId))],
    start:edges[0].feature.geometry.coordinates[0],end:edges.at(-1).feature.geometry.coordinates.at(-1),
    featureCollection:{type:'FeatureCollection',features:edges.map(edge=>edge.feature)}};
   if(collectAll)pool.set(key,course);
@@ -201,6 +220,20 @@ function connectInBand(features,center,range,mode='loop',options={}) {
    const candidates=labels.filter(label=>label.meters>=min&&label.meters<=max&&(routeRegions.length?label.regionProgress===routeRegions.length:label.edge.endsInRegion))
     .sort((a,b)=>a.cost-b.cost||Math.abs(a.meters-target)-Math.abs(b.meters-target)).slice(0,128);
    for(const candidate of candidates){if(!collectAll&&best&&candidate.cost>=best.cost)break;accept(path(candidate),startDistance);}
+   // Fixed endpoints need alternatives through intermediate roads: a shortest
+   // path below the requested minimum must not discard every longer course.
+   if(endSnap){
+    const waypoints=labels.filter(label=>label.node!==start&&label.node!==endSnap.node&&label.meters>=min/3&&label.meters<max&&Number.isFinite(estimate(label.node).meters))
+     .sort((a,b)=>Math.abs(a.meters+estimate(a.node).meters-target)-Math.abs(b.meters+estimate(b.node).meters-target));
+    const chosen=[],nodes=new Set();
+    for(const label of waypoints){if(nodes.has(label.node))continue;nodes.add(label.node);chosen.push(label);if(chosen.length===64)break;}
+    for(const label of chosen){
+     const out=path(label),blocked=new Set(out.slice(0,-1).map(edge=>edge.to));
+     blocked.add(start);
+     const continuation=shortest(graph,label.node,max-label.meters,blocked,endSnap.node,Infinity,out.at(-1),true,null,estimate);
+     if(continuation.target)accept([...out,...path(continuation.target)],startDistance);
+    }
+   }
   }else{
    // Ignore turns on the reverse graph: this is only an optimistic lower bound.
    const backward=shortest(reverse,start,max,new Set(),null,Infinity,null,false);
@@ -222,7 +255,7 @@ function connectInBand(features,center,range,mode='loop',options={}) {
  }
  if(collectAll&&pool.size)return [...pool.values()].sort((a,b)=>a.cost-b.cost||a.startDistance-b.startDistance);
  if(best)return [best];
- throw new Error('현재 화면에서 해당 거리의 연결 경로를 찾지 못했습니다. 지도 위치·배율·거리를 바꿔주세요.');
+ throw new Error(options.endPoint?'지정한 출발·도착 위치를 연결하는 요청 거리의 코스를 찾지 못했습니다. 거리를 줄이거나 위치를 조금 조정해주세요.':'현재 탐색 구역에서 해당 거리의 연결 경로를 찾지 못했습니다. 희망 지역이나 거리를 바꿔주세요.');
 }
 export function connectCourse(features,center,range,mode='loop',options={}) {
  return connectCourses(features,center,range,mode,options)[0];
@@ -233,7 +266,8 @@ function validateOptions(center,range,mode,options) {
  if(options.endBounds&&mode!=='oneway')throw new Error('도착 지역 지정은 편도 코스에서 사용해주세요.');
  if(options.routeRegions!==undefined&&(!Array.isArray(options.routeRegions)||options.routeRegions.length>3||options.routeRegions.some(region=>!region?.geometry||!Array.isArray(region.bounds)||region.bounds.length!==4||!region.bounds.every(Number.isFinite))))throw new Error('희망 지역은 최대 3곳까지 선택할 수 있습니다.');
  if(options.bounds&&(!Array.isArray(options.bounds)||options.bounds.length!==4||!options.bounds.every(Number.isFinite)||options.bounds[0]>=options.bounds[2]||options.bounds[1]>=options.bounds[3]))throw new Error('지도 범위를 확인해주세요.');
- if(options.startPoint&&(!Array.isArray(options.startPoint)||options.startPoint.length!==2||!options.startPoint.every(Number.isFinite)||Math.abs(options.startPoint[0])>180||Math.abs(options.startPoint[1])>90))throw new Error('출발 위치를 확인해주세요.');
+ for(const key of ['startPoint','endPoint'])if(options[key]&&(!Array.isArray(options[key])||options[key].length!==2||!options[key].every(Number.isFinite)||Math.abs(options[key][0])>180||Math.abs(options[key][1])>90))throw new Error('출발·도착 위치를 확인해주세요.');
+ if(options.endPoint&&mode!=='oneway')throw new Error('도착 위치 지정은 편도 코스에서 사용해주세요.');
  if(options.profile)options={...options,profile:validateProfile(options.profile)};
  if(options.preferredLanes&&(!Array.isArray(options.preferredLanes)||options.preferredLanes.some(lane=>!Number.isInteger(lane)||lane<1||lane>7)))throw new Error('선호 차로를 확인해주세요.');
  if(!Number.isFinite(range.min)||!Number.isFinite(range.max)||range.min<MIN_DISTANCE||range.max>MAX_DISTANCE||range.max<range.min||range.max-range.min>MAX_DISTANCE_SPAN||!center||center.length!==2||!center.every(Number.isFinite))throw new Error('거리는 5~30km, 최소·최대 차이는 10km 이내로 설정해주세요.');
@@ -257,5 +291,5 @@ export function connectCourses(features,center,range,mode='loop',options={}) {
   }catch(error){if(!error.message.includes('찾지 못했습니다'))throw error;}
  }
  if(courses.length)return courses;
- throw new Error('현재 화면에서 해당 거리의 연결 경로를 찾지 못했습니다. 지도 위치·배율·거리를 바꿔주세요.');
+ throw new Error(options.endPoint?'지정한 출발·도착 위치를 연결하는 요청 거리의 코스를 찾지 못했습니다. 거리를 줄이거나 위치를 조금 조정해주세요.':'현재 탐색 구역에서 해당 거리의 연결 경로를 찾지 못했습니다. 희망 지역이나 거리를 바꿔주세요.');
 }

@@ -34,6 +34,10 @@ CSS의 `:root` 변수가 색상과 지도 여백의 정식 소유자이며 이 �
 
 파랑은 선택과 주요 행동, 빨강은 선택 경로, 초록은 출발·도착이다. 본문은 text, 보조 설명은 muted를 사용한다. 색상만으로 선택을 전달하지 않고 라벨·테두리·aria-pressed를 함께 사용한다.
 
+차로 수 확인은 1~7+의 7단계 파랑을 사용한다. 1차로 `#bfdbfe`에서 7차로 이상 `#1e3a8a`까지 점점 진해지며, 중간값과 정식 소유자는 `src/lib/lane-roads.js`의 `LANE_COLORS`다. 선택 버튼은 같은 색과 선택 테두리·aria-pressed를 사용하고, 도로 툴팁에서 실제 차로 수를 확인한다. 이 색은 차로 수 구분이며 위험도나 추천 선호를 뜻하지 않는다.
+
+차로 표시의 원본은 ITS 2026-09-14 방향별 도로망이다. 지도 왼쪽 아래의 LaneDisplayStatus에서 출처·날짜·표시할 도로 구간 수·확대 안내·재시도를 제공한다. 선택 숫자와 실제 차로 수를 함께 사용하고 7+는 실제 툴팁 숫자를 유지한다. 빨간 View-T 추천 코스와 출발·도착은 위에 유지한다.
+
 ## Typography
 
 Noto Sans KR을 본문과 제목에 사용하고 제목은 크기와 굵기로 구별한다. 기본 본문 14px, 일반 보조 문구 최소 12px, 제목 15~22px. 지도 위 지역명은 12px, 순위 숫자는 11px를 사용한다. 지도에는 점수 설명을 반복하지 않고 목록에서 제공한다. SDK의 저작권·축척 글자 크기는 제공자가 소유한다.
@@ -127,3 +131,19 @@ DriverPreferences는 기존 거리 조건 바로 아래에 같은 흰 표면·�
 비용 난이도 추천: 후보 버튼에는 번호 아래 쉬움/보통/어려움을 보조 문구로 표시한다. 부족한 난이도를 다른 높은 비용 후보로 채우면 대체를 함께 표시한다. 색으로 난이도를 과장하지 않고 기존 후보 선택의 빨강을 유지한다. 단일 난이도의 3·4개 버튼과 전체의 2개씩 최대 6개 안내는 같은 코스 탐색 패널 안에 둔다. 실제 난이도와 현재 후보 비용의 상대 구분을 혼동하지 않도록 안내한다.
 
 희망 지역 탭은 출발/도착 선택 필드와 시·도 4열 버튼과 시·군·구 2열 버튼으로 구성한다. 점수와 순위를 표시하지 않는다. 저장 코스는 별도 세 번째 탭이며 실제 이름·거리·난이도·경로 형태를 표시한다. 기존 색상과 컨트롤 스타일을 재사용한다.
+
+
+## 희망 구역과 출발·도착 지정 (2026-10-09)
+
+이번 요구사항은 이전의 지역 선택 순서 계약을 대체한다. 최대 인접한 3곳을 선택하며 다른 시·도의 인접 시·군·구도 전체 이름으로 표시한다. 선택한 구역 전체 도로를 배율과 독립적으로 조회하고, 선택 순서에 관계없이 그 구역 안의 코스를 구한다. 성동구의 이웃은 사용자 지정 6개 구 목록을 적용한다.
+
+ConnectedCourseControl이 출발·도착의 자동 선택/직접 지정/지도 중심 버튼을 공유한다. 두 지도는 요청 좌표를 파란 마커로 표시한다. 지정 좌표에 도로가 없으면 로드한 탐색 범위 안의 가장 가까운 방향별 도로 노드로 연결한다. 도착을 지정하면 편도로 탐색하며 실제 노드와 요청 위치의 직선 거리는 코스 길이에 포함하지 않는다. 도로가 없는 범위는 오류를 표시한다. 선택이나 조건을 바꾸면 진행 중 Worker/AI 및 이전 후보를 취소한다.
+
+### UI consistency — 2026-10-09
+
+- Preserve the existing white and blue workspace identity; `src/ui-system.css` owns shared presentation.
+- Region and saved screens share 22px headings, 13px controls, 12px supporting text, 7px control radii and 10px card radii.
+- Region controls use 44px touch targets; disabled regions have a muted background and text, selected regions use blue.
+- Start and destination use the shared `CourseLocationControl` component, with stable status spacing and identical actions.
+- Card detail/save actions and route save/clear actions share a single row. Selected search areas appear as labeled chips.
+- Saved courses use the same card surface and a dedicated empty state.
